@@ -5,6 +5,8 @@ A small interactive graph for the **equilibrium solidification (lever-rule)** mo
 - `index.html` — runs in any browser, no installation needed.
 - `fs_slider.m` — the same slider app in MATLAB.
 
+**Live demo:** https://1clan.github.io/mse670-solute-redistribution/
+
 ![Screenshot of the slider app](preview.png)
 
 Move the **solid fraction `f_s`** slider from 0 to 1 and watch:
