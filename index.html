@@ -981,13 +981,19 @@
         </div>
 
         <div class="param-panel" id="tillerPanel" hidden>
-          <div class="field">
-            <label for="peInput">Péclet number, Pe = vL / D<sub>L</sub></label>
-            <input id="peInput" type="number" min="1" max="200" step="1" value="20" />
+          <div class="mini-grid">
+            <div class="field">
+              <label for="velocityInput">Growth velocity, v <span>(µm/s)</span></label>
+              <input id="velocityInput" type="number" min="0.01" max="100000" step="1" value="20" />
+            </div>
+            <div class="field">
+              <label for="dlInput">D<sub>L</sub> <span>(×10⁻⁹ m²/s)</span></label>
+              <input id="dlInput" type="number" min="0.0001" max="1000" step="0.01" value="1.0" />
+            </div>
           </div>
-          <p class="param-hint" id="peHint">
-            Boundary layer δ/L = 1/Pe. The initial transient is set by 1/(kPe);
-            use Pe ≥ 1 for a thin boundary layer.
+          <p class="param-hint" id="tillerHint">
+            Boundary layer δ/L = D<sub>L</sub>/(vL), with L = 1 mm.
+            The initial transient is set by (δ/L)/k; keep δ/L below about 1.
           </p>
         </div>
 
@@ -1009,10 +1015,18 @@
               <label for="alphaCInput">α<sub>C</sub> <span>(W–T)</span></label>
               <input id="alphaCInput" type="number" min="0" max="10" step="0.01" value="0.10" />
             </div>
+            <div class="field">
+              <label for="betaInput">β<sub>CK</sub> <span>(direct)</span></label>
+              <input id="betaInput" type="number" min="0" max="1" step="0.01" value="0.1933" />
+            </div>
           </div>
           <label class="check-row" for="wtToggle">
             <input id="wtToggle" type="checkbox" />
             Won–Thomas coarsening correction: α⁺ = 2(α + α<sub>C</sub>)
+          </label>
+          <label class="check-row" for="betaToggle">
+            <input id="betaToggle" type="checkbox" />
+            Set β directly (overrides α and the Won–Thomas correction)
           </label>
           <p class="param-hint" id="ckHint"></p>
         </div>
@@ -1199,14 +1213,14 @@
                 <th scope="row">Key parameter</th>
                 <td>k</td>
                 <td>k</td>
-                <td>Pe = vL / D<sub>L</sub></td>
+                <td>δ/L = D<sub>L</sub>/(vL)</td>
                 <td>α = 4D<sub>s</sub>t<sub>f</sub>/λ<sub>2</sub>², β<sub>CK</sub></td>
               </tr>
               <tr>
                 <th scope="row">Limiting cases</th>
                 <td>Complete diffusion in both phases</td>
                 <td>β = 0; no back diffusion</td>
-                <td>Pe → ∞; very thin boundary layer</td>
+                <td>δ/L → 0; very thin boundary layer</td>
                 <td>β → 0 gives Scheil; β → 1 gives lever rule</td>
               </tr>
               <tr>
@@ -1240,12 +1254,15 @@
     c0: 1.0,
     model: "equilibrium",
     view: "auto",
-    pe: 20,
+    v: 20,
+    dl: 1e-9,
     ds: 1e-13,
     tf: 100,
     lambda2: 20e-6,
     alphaC: 0.1,
     wonThomas: false,
+    betaDirect: false,
+    betaValue: 0.193253,
   };
 
   const els = {
@@ -1261,8 +1278,9 @@
     clLabel: document.getElementById("clLabel"),
     avgLine: document.getElementById("avgLine"),
     liqAvgLine: document.getElementById("liqAvgLine"),
-    peInput: document.getElementById("peInput"),
-    peHint: document.getElementById("peHint"),
+    velocityInput: document.getElementById("velocityInput"),
+    dlInput: document.getElementById("dlInput"),
+    tillerHint: document.getElementById("tillerHint"),
     tillerPanel: document.getElementById("tillerPanel"),
     ckPanel: document.getElementById("ckPanel"),
     dsInput: document.getElementById("dsInput"),
@@ -1270,6 +1288,8 @@
     lambdaInput: document.getElementById("lambdaInput"),
     alphaCInput: document.getElementById("alphaCInput"),
     wtToggle: document.getElementById("wtToggle"),
+    betaInput: document.getElementById("betaInput"),
+    betaToggle: document.getElementById("betaToggle"),
     ckHint: document.getElementById("ckHint"),
     balanceBox: document.getElementById("balanceBox"),
     balanceValue: document.getElementById("balanceValue"),
@@ -1327,6 +1347,9 @@
   }
 
   function betaCK(alpha) {
+    if (state.betaDirect) {
+      return Math.min(1, Math.max(0, state.betaValue));
+    }
     if (!(alpha > 0)) return 0;
     if (!Number.isFinite(alpha)) return 1;
     return 2 * alpha * (1 - Math.exp(-1 / alpha)) - Math.exp(-1 / (2 * alpha));
@@ -1357,11 +1380,21 @@
   // The solid profile is integrated from local equilibrium and global solute
   // balance. This recovers the initial transient, the C_S = C0 plateau, and
   // the final transient spike, while keeping the liquid boundary layer
-  // C_L(z) = C0 + (C_L* - C0) exp(-Pe z) mass-conserving.
+  // C_L(z) = C0 + (C_L* - C0) exp(-z/(delta/L)) mass-conserving.
+  const TILLER_L = 1e-3; // characteristic length L = 1 mm, in metres
   let tillerCache = { key: "", data: null };
 
+  // The Tiller equations use the dimensionless boundary-layer thickness
+  // delta/L = D_L/(v*L) directly, so no extra dimensionless input is needed.
+  function tillerDeltaNorm() {
+    const v = Math.max(state.v * 1e-6, 1e-12); // um/s -> m/s
+    const dl = Math.max(state.dl, 1e-15);
+    return (dl / (v * TILLER_L));
+  }
+
   function tillerData() {
-    const key = `${state.k}|${state.pe}`;
+    const delta = tillerDeltaNorm();
+    const key = `${state.k}|${delta}`;
     if (tillerCache.key === key) return tillerCache.data;
 
     const N = 2200;
@@ -1379,7 +1412,7 @@
       for (let it = 0; it < 8; it++) {
         const Ii = I[i - 1] + 0.5 * (sPrev + s) * dx;
         const deficit = x - Ii;
-        const cStar = 1 + (deficit * state.pe) / (1 - Math.exp(-state.pe * l));
+        const cStar = 1 + deficit / (delta * (1 - Math.exp(-l / delta)));
         s = state.k * cStar;
       }
       S[i] = s;
@@ -1435,7 +1468,7 @@
   function tillerLiquidProfileNorm(z, fs) {
     const clStar = tillerCLNorm(fs);
     if (!Number.isFinite(clStar)) return NaN;
-    return 1 + (clStar - 1) * Math.exp(-state.pe * z);
+    return 1 + (clStar - 1) * Math.exp(-z / tillerDeltaNorm());
   }
 
   // ── Model values ───────────────────────────────────────────
@@ -1629,8 +1662,9 @@
 
     // Tiller stages: initial transient, steady growth, final transient.
     if (isTiller()) {
-      const xInit = Math.min(0.45, 1 / (state.k * state.pe));
-      const xFinal = Math.max(0.55, 1 - 1 / state.pe);
+      const delta = tillerDeltaNorm();
+      const xInit = Math.min(0.45, delta / state.k);
+      const xFinal = Math.max(0.55, 1 - delta);
       const bands = [
         [0, xInit, "#fef3c7", "initial"],
         [xInit, xFinal, "#ecfdf5", "steady C\u209B = C\u2080"],
@@ -2084,7 +2118,7 @@
 
     // Boundary-layer thickness marker for Tiller.
     if (isTiller() && state.fs < 0.999) {
-      const delta = 1 / state.pe;
+      const delta = tillerDeltaNorm();
       const zEnd = Math.min(delta, zMax);
       if (zEnd > 0.004) {
         const yBar = sAxisBottom - 12;
@@ -2160,11 +2194,11 @@
         "No solid diffusion and no liquid convection. Solute piles up in a thin boundary layer ahead of the interface.";
       els.equationLabel.textContent = "Initial transient (Tiller et al.)";
       els.formula.innerHTML =
-        'C<sub>S</sub>(x) = C<sub>0</sub>[k + (1 \u2212 k)(1 \u2212 e<sup>\u2212kPe x</sup>)]';
+        'C<sub>S</sub>(x) = C<sub>0</sub>[k + (1 \u2212 k)(1 \u2212 e<sup>\u2212k x/(\u03B4/L)</sup>)]';
       els.equationNote.innerHTML =
         'Steady state: <em>C<sub>S</sub> = C<sub>0</sub></em> and ' +
-        '<em>C<sub>L</sub>(z) = C<sub>0</sub>[1 + (1 \u2212 k)/k \u00b7 e<sup>\u2212Pe z</sup>]</em>, ' +
-        'with <em>\u03B4/L = 1/Pe</em>. Near f<sub>s</sub> = 1 the boundary layer reaches the mold wall and produces a final-transient spike.';
+        '<em>C<sub>L</sub>(z) = C<sub>0</sub>[1 + (1 \u2212 k)/k \u00b7 e<sup>\u2212z/(\u03B4/L)</sup>]</em>, ' +
+        'with <em>\u03B4/L = D<sub>L</sub>/(vL)</em>. Near f<sub>s</sub> = 1 the boundary layer reaches the mold wall and produces a final-transient spike.';
       els.graphSubtitle.innerHTML =
         'Tiller et al.: initial transient \u2192 steady growth C<sub>S</sub> = C<sub>0</sub> \u2192 final transient';
       els.spatialSubtitle.textContent =
@@ -2183,12 +2217,12 @@
         'grows at <code>C_0</code>. The app integrates the solid profile from the local-equilibrium ' +
         'condition and the overall solute balance, so the initial transient, plateau, and final spike ' +
         'are all mass-conserving. The liquid profile is ' +
-        '<code>C_L(z) = C_0 + (C_L* \u2212 C_0)e<sup>\u2212Pe z</sup></code>.';
+        '<code>C_L(z) = C_0 + (C_L* \u2212 C_0)e<sup>\u2212z/(\u03B4/L)</sup></code>.';
       els.footnote.innerHTML =
         '<strong>How to read it:</strong> the first solid is <code>kC_0</code>; the solid then rises ' +
         'toward <code>C_0</code> while the liquid at the interface rises toward <code>C_0/k</code>. ' +
         'In the middle of the bar the solid is close to <code>C_0</code> and the liquid decays from ' +
-        'the interface value to the bulk over <code>\u03B4/L = 1/Pe</code>. Near the end the boundary ' +
+        'the interface value to the bulk over <code>\u03B4/L = D_L/(vL)</code>. Near the end the boundary ' +
         'layer is squeezed against the mold wall, so both curves spike; the plot is clipped and the ' +
         'last-liquid value is singular in the ideal no-mixing limit.';
     } else if (isCK()) {
@@ -2296,23 +2330,29 @@
   }
 
   function updateParamHints() {
-    const delta = 1 / state.pe;
-    const initLength = 1 / (state.k * state.pe);
-    els.peHint.innerHTML =
-      `\u03B4/L = 1/Pe = <strong>${delta.toFixed(3)}</strong> \u00b7 ` +
-      `initial transient scale 1/(kPe) = <strong>${initLength.toFixed(3)}</strong>. ` +
-      'Use Pe \u2265 1 for a thin boundary layer.';
+    const delta = tillerDeltaNorm();
+    const initLength = delta / state.k;
+    els.tillerHint.innerHTML =
+      `\u03B4/L = D<sub>L</sub>/(vL) = <strong>${delta.toFixed(3)}</strong> \u00b7 ` +
+      `initial transient scale (\u03B4/L)/k = <strong>${initLength.toFixed(3)}</strong>. ` +
+      'Keep \u03B4/L below about 1 for a thin boundary layer.';
 
     const aBase = alphaBase();
     const aEff = alphaEff();
     const beta = betaCK(aEff);
-    const correction = state.wonThomas
-      ? ` \u00b7 \u03B1\u207A = 2(\u03B1 + \u03B1<sub>C</sub>) = <strong>${aEff.toPrecision(4)}</strong>`
-      : '';
-    els.ckHint.innerHTML =
-      `\u03B1 = 4D<sub>s</sub>t<sub>f</sub>/\u03BB<sub>2</sub><sup>2</sup> = ` +
-      `<strong>${aBase.toPrecision(4)}</strong>${correction} \u00b7 ` +
-      `\u03B2<sub>CK</sub> = <strong>${beta.toPrecision(4)}</strong>`;
+    if (state.betaDirect) {
+      els.ckHint.innerHTML =
+        `\u03B2<sub>CK</sub> = <strong>${beta.toPrecision(4)}</strong> (direct override; ` +
+        '\u03B1 and Won\u2013Thomas are bypassed)';
+    } else {
+      const correction = state.wonThomas
+        ? ` \u00b7 \u03B1\u207A = 2(\u03B1 + \u03B1<sub>C</sub>) = <strong>${aEff.toPrecision(4)}</strong>`
+        : '';
+      els.ckHint.innerHTML =
+        `\u03B1 = 4D<sub>s</sub>t<sub>f</sub>/\u03BB<sub>2</sub><sup>2</sup> = ` +
+        `<strong>${aBase.toPrecision(4)}</strong>${correction} \u00b7 ` +
+        `\u03B2<sub>CK</sub> = <strong>${beta.toPrecision(4)}</strong>`;
+    }
   }
 
   function update() {
@@ -2433,21 +2473,39 @@
     }
   });
 
-  els.peInput.addEventListener("input", (event) => {
+  els.velocityInput.addEventListener("input", (event) => {
     const value = Number(event.target.value);
-    if (Number.isFinite(value) && value >= 1 && value <= 200) {
-      setState({ pe: value });
+    if (Number.isFinite(value) && value > 0 && value <= 100000) {
+      setState({ v: value });
     }
   });
 
-  els.peInput.addEventListener("blur", (event) => {
+  els.velocityInput.addEventListener("blur", (event) => {
     const value = Number(event.target.value);
-    if (!Number.isFinite(value) || value < 1) {
-      event.target.value = "1";
-      setState({ pe: 1 });
-    } else if (value > 200) {
-      event.target.value = "200";
-      setState({ pe: 200 });
+    if (!Number.isFinite(value) || value <= 0) {
+      event.target.value = "20";
+      setState({ v: 20 });
+    } else if (value > 100000) {
+      event.target.value = "100000";
+      setState({ v: 100000 });
+    }
+  });
+
+  els.dlInput.addEventListener("input", (event) => {
+    const value = Number(event.target.value);
+    if (Number.isFinite(value) && value > 0 && value <= 1000) {
+      setState({ dl: value * 1e-9 });
+    }
+  });
+
+  els.dlInput.addEventListener("blur", (event) => {
+    const value = Number(event.target.value);
+    if (!Number.isFinite(value) || value <= 0) {
+      event.target.value = "1.0";
+      setState({ dl: 1e-9 });
+    } else if (value > 1000) {
+      event.target.value = "1000";
+      setState({ dl: 1e-6 });
     }
   });
 
@@ -2477,6 +2535,33 @@
     if (Number.isFinite(value) && value >= 0 && value <= 10) {
       setState({ alphaC: value });
     }
+  });
+
+  els.betaInput.addEventListener("input", (event) => {
+    const value = Number(event.target.value);
+    if (Number.isFinite(value) && value >= 0 && value <= 1) {
+      setState({ betaValue: value });
+    }
+  });
+
+  els.betaInput.addEventListener("blur", (event) => {
+    const value = Number(event.target.value);
+    if (!Number.isFinite(value) || value < 0) {
+      event.target.value = "0";
+      setState({ betaValue: 0 });
+    } else if (value > 1) {
+      event.target.value = "1";
+      setState({ betaValue: 1 });
+    }
+  });
+
+  els.betaToggle.addEventListener("change", (event) => {
+    const value = Number(els.betaInput.value);
+    const patch = { betaDirect: event.target.checked };
+    if (Number.isFinite(value)) {
+      patch.betaValue = Math.min(1, Math.max(0, value));
+    }
+    setState(patch);
   });
 
   els.wtToggle.addEventListener("change", (event) => {

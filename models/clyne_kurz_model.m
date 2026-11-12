@@ -1,8 +1,9 @@
-function out = clyne_kurz_model(k, c0, Ds, tf, lambda2, fs, alphaC, useWT)
+function out = clyne_kurz_model(k, c0, Ds, tf, lambda2, fs, alphaC, useWT, betaOverride)
 %CLYNE_KURZ_MODEL  Back-diffusion microsegregation model of Clyne and Kurz.
 %
 %   out = clyne_kurz_model(k, c0, Ds, tf, lambda2, fs)
 %   out = clyne_kurz_model(k, c0, Ds, tf, lambda2, fs, alphaC, useWT)
+%   out = clyne_kurz_model(k, c0, Ds, tf, lambda2, fs, alphaC, useWT, betaOverride)
 %
 %   The liquid is fully mixed, but the solid retains a finite amount of
 %   back diffusion. The dimensionless Fourier number is
@@ -36,11 +37,15 @@ function out = clyne_kurz_model(k, c0, Ds, tf, lambda2, fs, alphaC, useWT)
 %       fs       solid fraction, 0 <= fs <= 1 (scalar or array)
 %       alphaC   optional Won-Thomas coarsening constant (default 0)
 %       useWT    optional flag for the Won-Thomas correction (default false)
+%       betaOverride  optional direct value of beta in [0,1]. When supplied it
+%                replaces the alpha-derived beta, and alpha/useWT only affect
+%                the reported diagnostics.
 %
 %   Outputs (struct)
 %       out.alpha      base Fourier number, 4*Ds*tf/lambda2^2
 %       out.alphaEff   alpha used in beta (Won-Thomas corrected if requested)
-%       out.beta       Clyne-Kurz back-diffusion parameter
+%       out.beta       Clyne-Kurz back-diffusion parameter (direct value when
+%                      betaOverride is supplied)
 %       out.Cl         liquid composition
 %       out.CsStar     interface solid composition, k*Cl
 %       out.CsAvg      average solid composition
@@ -49,12 +54,17 @@ function out = clyne_kurz_model(k, c0, Ds, tf, lambda2, fs, alphaC, useWT)
 %   Example
 %       out = clyne_kurz_model(0.3, 1.0, 1e-13, 100, 20e-6, 0.9)
 %       % alpha = 0.1, beta = 0.1933, Cl/c0 = 4.051
+%       out = clyne_kurz_model(0.3, 1.0, 1e-13, 100, 20e-6, 0.9, 0, false, 0.5)
+%       % beta = 0.5 treated as an independent sensitivity variable
 
 if nargin < 7 || isempty(alphaC)
     alphaC = 0;
 end
 if nargin < 8 || isempty(useWT)
     useWT = false;
+end
+if nargin < 9
+    betaOverride = [];
 end
 
 lambda2 = max(lambda2, 1e-12);
@@ -66,12 +76,18 @@ else
     alphaEff = alpha;
 end
 
-if alphaEff <= 0
+if ~isempty(betaOverride)
+    beta = min(1, max(0, betaOverride));
+    directBeta = true;
+elseif alphaEff <= 0
     beta = 0;
+    directBeta = false;
 elseif isinf(alphaEff)
     beta = 1;
+    directBeta = false;
 else
     beta = 2*alphaEff*(1 - exp(-1/alphaEff)) - exp(-1/(2*alphaEff));
+    directBeta = false;
 end
 
 if abs(k - 1) < 1e-12
@@ -107,6 +123,7 @@ end
 out.alpha = alpha;
 out.alphaEff = alphaEff;
 out.beta = beta;
+out.betaDirect = directBeta;
 out.Cl = Cl;
 out.CsStar = CsStar;
 out.CsAvg = CsAvg;

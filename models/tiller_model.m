@@ -1,8 +1,8 @@
-function out = tiller_model(k, c0, Pe, fs, N)
+function out = tiller_model(k, c0, v, DL, fs, N, L)
 %TILLER_MODEL  Diffusion-controlled planar solidification (Tiller et al.).
 %
-%   out = tiller_model(k, c0, Pe, fs)
-%   out = tiller_model(k, c0, Pe, fs, N)
+%   out = tiller_model(k, c0, v, DL, fs)
+%   out = tiller_model(k, c0, v, DL, fs, N, L)
 %
 %   No solid diffusion (D_S = 0) and no liquid mixing (D_L finite). Solute
 %   rejected by the growing solid can only spread by diffusion in the liquid,
@@ -12,11 +12,12 @@ function out = tiller_model(k, c0, Pe, fs, N)
 %   At steady state the interface liquid composition reaches c0/k, the solid
 %   grows at c0, and the liquid profile is
 %
-%       CL(z) = c0 + (Cl* - c0)*exp(-Pe*z),   Pe = v*L/D_L
+%       CL(z) = c0 + (Cl* - c0)*exp(-z/(delta/L)),
+%       delta/L = DL/(v*L)
 %
-%   with boundary-layer thickness delta/L = 1/Pe. The initial transient is
-%   governed by 1/(k*Pe), and near the end of the bar the boundary layer is
-%   squeezed against the mold wall, producing a final-transient spike.
+%   with boundary-layer thickness delta. The initial transient is governed by
+%   (delta/L)/k, and near the end of the bar the boundary layer is squeezed
+%   against the mold wall, producing a final-transient spike.
 %
 %   This implementation integrates the solid profile from the local
 %   equilibrium condition and the global solute balance
@@ -29,16 +30,17 @@ function out = tiller_model(k, c0, Pe, fs, N)
 %   Inputs
 %       k    partition coefficient, k > 0 (not restricted to k <= 1)
 %       c0   nominal composition
-%       Pe   Peclet number, Pe = v*L/D_L (use Pe >= 1 for a thin layer)
+%       v    interface growth velocity (m/s)
+%       DL   liquid diffusivity (m^2/s)
 %       fs   solid fraction at which to evaluate the interface (default 0.5)
 %       N    number of grid intervals (default 1400)
+%       L    characteristic length (m, default 1e-3)
 %
 %   Outputs (struct)
 %       out.x           solid position grid, 0 .. 0.9999
 %       out.csProfile   solid composition Cs(x) along the bar
 %       out.fs          requested solid fraction
-%       out.Pe          Peclet number
-%       out.delta       boundary-layer thickness, delta/L = 1/Pe
+%       out.delta       boundary-layer thickness, delta/L = DL/(v*L)
 %       out.CsStar      interface solid composition at fs
 %       out.ClStar      interface liquid composition at fs
 %       out.CsAvg       average solid composition at fs
@@ -50,18 +52,30 @@ function out = tiller_model(k, c0, Pe, fs, N)
 %   fs -> 1. The function returns Inf there rather than a finite artefact.
 %
 %   Example
-%       out = tiller_model(0.3, 1.0, 20, 0.5);
+%       out = tiller_model(0.3, 1.0, 20e-6, 1e-9, 0.5);
+%       % default L = 1 mm; delta/L = 0.05
 %       % interface solid ~0.965, interface liquid ~3.217
 
-if nargin < 4 || isempty(fs)
+if nargin < 5 || isempty(fs)
     fs = 0.5;
 end
-if nargin < 5 || isempty(N)
+if nargin < 6 || isempty(N)
     N = 1400;
 end
-if Pe <= 0
-    error('tiller_model:Pe','Pe must be positive.');
+if nargin < 7 || isempty(L)
+    L = 1e-3;
 end
+if v <= 0
+    error('tiller_model:v','v must be positive.');
+end
+if DL <= 0
+    error('tiller_model:DL','DL must be positive.');
+end
+if L <= 0
+    error('tiller_model:L','L must be positive.');
+end
+
+delta = DL/(v*L);
 
 fs = max(0, min(1, fs));
 xmax = 0.9999;
@@ -79,7 +93,7 @@ for i = 2:N+1
     for it = 1:8
         Ii = I(i-1) + 0.5*(sPrev + s)*dx;
         deficit = xx - Ii;
-        cStar = 1 + deficit*Pe/(1 - exp(-Pe*l));
+        cStar = 1 + deficit/(delta*(1 - exp(-l/delta)));
         s = k*cStar;
     end
     S(i) = s;
@@ -89,8 +103,7 @@ end
 out.x = x;
 out.csProfile = c0*S;
 out.fs = fs;
-out.Pe = Pe;
-out.delta = 1/Pe;
+out.delta = delta;
 
 if fs >= 1 - 1e-12
     out.CsStar = Inf;
@@ -118,5 +131,5 @@ else
 end
 
 out.z = linspace(0, 1 - fs, 140);
-out.ClProfile = c0 + (out.ClStar - c0)*exp(-Pe*out.z);
+out.ClProfile = c0 + (out.ClStar - c0)*exp(-out.z/delta);
 end

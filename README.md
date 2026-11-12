@@ -64,16 +64,16 @@ with `C_S,avg → k C_0` as `f_s → 0`.
 
 This is the Tiller–Jackson–Rutter–Chalmers case: `D_S = 0`, and the liquid is not convectively mixed. Solute rejected by the growing solid can only spread by **diffusion in the liquid**, so a boundary layer builds up ahead of the interface.
 
-With the Péclet number `Pe = v L / D_L`, the boundary-layer thickness is
+The boundary-layer thickness is set by the growth velocity `v` and the liquid diffusivity `D_L`:
 
 ```
-δ / L = 1 / Pe
+δ/L = D_L / (v L)
 ```
 
-and the steady liquid profile is
+The app uses a fixed characteristic length `L = 1 mm`, so it asks for `v` in µm/s and `D_L` in units of `10⁻⁹ m²/s`. The steady liquid profile is
 
 ```
-C_L(z) = C_0 [1 + (1 − k)/k · exp(−Pe z)]
+C_L(z) = C_0 [1 + (1 − k)/k · exp(−z/(δ/L))]
 ```
 
 where `z` is the distance ahead of the interface. The three stages are:
@@ -81,14 +81,14 @@ where `z` is the distance ahead of the interface. The three stages are:
 1. **Initial transient** — the first solid is `k C_0` and rises toward `C_0`:
 
    ```
-   C_S(x) ≈ C_0 [k + (1 − k)(1 − exp(−k Pe x))]
+   C_S(x) ≈ C_0 [k + (1 − k)(1 − exp(−k x/(δ/L)))]
    ```
 
 2. **Steady-state growth** — the interface liquid reaches `C_0/k`, so the solid grows at `C_S = C_0`.
 
 3. **Final transient** — near `f_s = 1` the boundary layer is squeezed against the mold wall and both compositions spike.
 
-The app integrates the solid profile from the local-equilibrium condition and the overall solute balance, so the initial transient, the `C_S = C_0` plateau, and the final spike are mass-conserving. The liquid boundary layer is shown as a separate profile. Use `Pe ≥ 1` for a thin boundary layer; smaller values broaden the layer and the transient.
+The app integrates the solid profile from the local-equilibrium condition and the overall solute balance, so the initial transient, the `C_S = C_0` plateau, and the final spike are mass-conserving. The liquid boundary layer is shown as a separate profile. Keep `δ/L` below about 1 for a thin boundary layer; larger values broaden the layer and the transient.
 
 ### Clyne–Kurz (back diffusion)
 
@@ -121,6 +121,8 @@ Limiting cases:
 - `β → 0` recovers **Scheil–Gulliver** (no back diffusion).
 - `β → 1` recovers the **equilibrium lever rule** (complete back diffusion).
 
+`β` is not an independent physical property: it is a lumped back-diffusion parameter computed from `α`, which in turn depends on `D_s`, `t_f`, and `λ₂`. The app shows the derived `β_CK` and also lets you switch on a **direct β override** if you want to study `β` as a sensitivity variable. With the override on, `α` and the Won–Thomas correction are bypassed.
+
 ### Won–Thomas coarsening correction
 
 The Won–Thomas extension approximates dendrite coarsening by enlarging the Fourier number:
@@ -131,6 +133,73 @@ The Won–Thomas extension approximates dendrite coarsening by enlarging the Fou
 
 and then recomputing `β_CK` with `α⁺`. The factor of two extends the result to columnar dendrites, while `α_C` accounts for the smaller arm spacing present before coarsening is complete. This is an approximate correction, not a full coarsening model; the empirical secondary-dendrite-arm-spacing fits in the Won–Thomas paper are steel-specific and are not applied here.
 
+### How temperature enters
+
+The four models above are **isothermal at the interface**: `k`, `D_s`, `D_L`, and `t_f` are held constant. Temperature is not an independent variable in those equations, so changing `T` only makes sense if it changes one or more of those properties or the liquidus relation.
+
+The usual route is:
+
+1. **Temperature-dependent diffusivities.** Use an Arrhenius law for solid and liquid diffusion:
+
+   ```
+   D_s(T) = D_s,0 exp(−Q_s / RT)
+   D_L(T) = D_L,0 exp(−Q_L / RT)
+   ```
+
+   Then `α = 4D_s(T)t_f/λ₂²`, `β_CK` changes with `T`, and the Tiller boundary layer `δ/L = D_L(T)/(vL)` also changes with `T`.
+
+2. **Temperature-dependent partition coefficient.** Either use a measured `k(T)` or an Arrhenius-type approximation:
+
+   ```
+   k(T) = k_ref exp[−(Q_k/R)(1/T − 1/T_ref)]
+   ```
+
+   A real alloy would use the solidus and liquidus compositions from the phase diagram, `k = C_S/C_L`, at the local interface temperature.
+
+3. **Liquidus coupling.** For a dilute binary alloy the local liquidus is
+
+   ```
+   T = T_m + m_L C_L        (m_L < 0)
+   ```
+
+   so the liquid composition is fixed by temperature:
+
+   ```
+   C_L = (T − T_m) / m_L
+   ```
+
+   Substituting the model's `C_L(f_s)` lets you solve for `f_s(T)`. For example, Scheil gives
+
+   ```
+   f_s(T) = 1 − [(T − T_m)/(m_L C_0)]^(1/(k−1))
+   ```
+
+   and the equilibrium model gives
+
+   ```
+   f_s(T) = [1 − C_0 m_L/(T − T_m)]/(1 − k)
+   ```
+
+   Clyne–Kurz can be inverted in the same way. Tiller has no closed-form `C_L(f_s)`, so it must be solved numerically.
+
+4. **Cooling history.** The local solidification time is set by the cooling rate:
+
+   ```
+   t_f ≈ (T_liq − T_sol)/CR
+   ```
+
+   A slower cooling rate increases `t_f`, which increases `α` and `β_CK` and therefore allows more back diffusion.
+
+5. **Directional solidification.** With a thermal gradient `G` and interface velocity `v`, the temperature along the bar is approximately
+
+   ```
+   T(x) = T_0 + G x
+   ```
+
+   Combining this with the concentration profile gives the local `f_s(x,T)` and is also the starting point for constitutional-undercooling checks.
+
+The current app keeps `T` fixed and exposes the resulting constants (`k`, `D_s`, `t_f`, `v`, `D_L`, `β`). A fully temperature-driven version would make `k` and the diffusivities functions of `T` and solve the liquidus relation above.
+
 ## Model comparison
 
 | Feature | Equilibrium | Scheil–Gulliver | Tiller et al. | Clyne–Kurz |
@@ -139,8 +208,8 @@ and then recomputing `β_CK` with `α⁺`. The factor of two extends the result 
 | Liquid mixing `D_L` | Infinite | Infinite | Diffusion only; no convection | Infinite; liquid homogenized |
 | Solid composition | Uniform at `C_0` | Continuously varying (cored) | Initial transient → `C_0` plateau → final spike | Varies; segregation reduced by back diffusion |
 | Liquid composition | Uniform | Uniform | Boundary layer `C_L(z)` | Uniform |
-| Key parameters | `k` | `k` | `Pe = vL/D_L` | `α = 4D_s t_f/λ₂²`, `β_CK` |
-| Limiting cases | Complete diffusion in both phases | `β = 0` | `Pe → ∞`; very thin layer | `β → 0` gives Scheil; `β → 1` gives lever rule |
+| Key parameters | `k` | `k` | `v`, `D_L`; `δ/L = D_L/(vL)` | `α = 4D_s t_f/λ₂²`, `β_CK` |
+| Limiting cases | Complete diffusion in both phases | `β = 0` | `δ/L → 0`; very thin layer | `β → 0` gives Scheil; `β → 1` gives lever rule |
 | Interface stability | Planar | Planar (assumed) | Prone to constitutional supercooling | Planar / local equilibrium assumed |
 
 ## Run it
@@ -183,12 +252,13 @@ addpath('models');
 [Cs, Cl, CsAvg] = equilibrium_model(0.3, 1.0, 0.5);
 [Cs, Cl, CsAvg] = scheil_model(0.3, 1.0, 0.5);
 
-outT = tiller_model(0.3, 1.0, 20, 0.5);      % k, C0, Pe, fs
+outT = tiller_model(0.3, 1.0, 20e-6, 1e-9, 0.5);  % k, C0, v [m/s], D_L [m²/s], fs
 outK = clyne_kurz_model(0.3, 1.0, 1e-13, 100, 20e-6, 0.9);
+outB = clyne_kurz_model(0.3, 1.0, 1e-13, 100, 20e-6, 0.9, 0, false, 0.5);  % direct beta
 outW = won_thomas_model(0.3, 1.0, 1e-13, 100, 20e-6, 0.9, 0.1);
 ```
 
-`clyne_kurz_model` and `won_thomas_model` return a struct with `alpha`, `beta`, `Cl`, `CsStar`, `CsAvg`, and `ClAvg`. `tiller_model` returns the solid profile `x`, `csProfile`, the interface values, the liquid boundary layer `z`, `ClProfile`, and `delta`.
+`clyne_kurz_model` and `won_thomas_model` return a struct with `alpha`, `beta`, `Cl`, `CsStar`, `CsAvg`, and `ClAvg`. `clyne_kurz_model` also accepts a ninth argument that sets `beta` directly (0–1) and reports `betaDirect = true`; `won_thomas_model` returns the coarsening-corrected `alphaEff`. `tiller_model` returns the solid profile `x`, `csProfile`, the interface values, the liquid boundary layer `z`, `ClProfile`, and `delta`.
 
 ## Controls
 
@@ -199,12 +269,14 @@ outW = won_thomas_model(0.3, 1.0, 1e-13, 100, 20e-6, 0.9, 0.1);
 | `f_s` slider | Solid fraction, from 0 (all liquid) to 1 (all solid). |
 | `k` | Partition coefficient, `k = C_S*/C_L*`. Any value `0.01 ≤ k ≤ 100`; not restricted to `k ≤ 1`. Default 0.30 (illustrative). |
 | `C_0` | Nominal solute concentration in wt.%. Default 1.0 wt.% (illustrative). |
-| `Pe` | Tiller Péclet number, `Pe = vL/D_L`, default 20. Use `Pe ≥ 1` for a thin boundary layer. |
+| `v` | Tiller interface growth velocity, entered in µm/s. With `L = 1 mm`, the default `v = 20 µm/s` and `D_L = 1×10⁻⁹ m²/s` give `δ/L = 0.05`. |
+| `D_L` | Tiller liquid diffusivity, entered in units of `10⁻⁹ m²/s`. Default `1.0` (i.e. `1×10⁻⁹ m²/s`). |
 | `D_s` | Clyne–Kurz solid diffusivity, entered in units of `10⁻¹² m²/s`; default `0.1` (i.e. `1×10⁻¹³ m²/s`). |
 | `t_f` | Local solidification time in seconds; default 100 s. |
 | `λ₂` | Secondary dendrite arm spacing in µm; default 20 µm. |
 | `α_C` | Won–Thomas coarsening constant; default 0.10. |
 | Won–Thomas | Replaces `α` by `α⁺ = 2(α + α_C)` before computing `β_CK`. |
+| Direct β | Overrides the `α`-derived `β_CK` with the entered value (0–1). Use this to treat `β` as a sensitivity variable; it bypasses `α` and Won–Thomas. |
 
 With the defaults above, `α = 0.10` and `β_CK ≈ 0.1933`. Enabling Won–Thomas gives `α⁺ = 0.40` and `β_CK ≈ 0.4478`.
 
@@ -257,13 +329,13 @@ At steady state the solute rejected at the interface balances diffusion down the
 D_L d²C_L/dz² + v dC_L/dz = 0
 ```
 
-whose solution that tends to `C_0` far from the interface is
+whose solution, tending to `C_0` far from the interface, is
 
 ```
-C_L(z) = C_0 + (C_L* − C_0) exp(−v z / D_L)
+C_L(z) = C_0 + (C_L* − C_0) exp(−z/(δ/L))
 ```
 
-At steady state `C_L* = C_0/k`, which gives the profile quoted above. The initial transient follows from the same balance before the boundary layer is fully developed, and the final transient appears when the layer reaches the end of the bar. The app solves the solid profile numerically from local equilibrium and the global solute balance rather than plotting a closed-form transient that ignores mass conservation.
+where `z` is the distance ahead of the interface normalized by `L`. The initial transient follows from the same balance before the boundary layer is fully developed, and the final transient appears when the layer reaches the end of the bar. The app solves the solid profile numerically from local equilibrium and the global solute balance rather than plotting a closed-form transient that ignores mass conservation.
 
 ### Clyne–Kurz
 
@@ -306,7 +378,7 @@ For **equilibrium**, each phase is uniform, so the along-bar profile is a sharp 
 - **No convective mixing in the liquid:** transport is by liquid diffusion only, with `D_L` finite.
 - **Local equilibrium** at the interface, `C_S* = k C_L*`, and constant `k`.
 - Planar interface. In practice, constitutional supercooling can make the interface cellular or dendritic.
-- `Pe ≥ 1` gives a thin boundary layer. The ideal no-mixing limit produces a singular last-liquid composition as `f_s → 1`.
+- `δ/L < 1` gives a thin boundary layer. The ideal no-mixing limit produces a singular last-liquid composition as `f_s → 1`.
 - The displayed liquid profile is the steady boundary-layer form; the solid profile is integrated to conserve solute over the whole bar.
 
 ### Clyne–Kurz
@@ -348,4 +420,4 @@ fs_slider_project/
 
 The models follow the equilibrium / lever-rule and Scheil–Gulliver sections of the handwritten notes (`Notes_261030_120238.pdf`, pages 1–3), the diffusion-controlled boundary-layer case in the three-case notes, and the derivations in `solute_redistribution_detailed_notes.pdf` (Chapters 5, 8, and 9, including the Won–Thomas discussion).
 
-Default values (`k = 0.30`, `C_0 = 1.0 wt.%`, `Pe = 20`, `D_s = 1×10⁻¹³ m²/s`, `t_f = 100 s`, `λ₂ = 20 µm`, `α_C = 0.10`) are for demonstration only; they are not measured properties of a named alloy.
+Default values (`k = 0.30`, `C_0 = 1.0 wt.%`, `v = 20 µm/s`, `D_L = 1×10⁻⁹ m²/s`, `D_s = 1×10⁻¹³ m²/s`, `t_f = 100 s`, `λ₂ = 20 µm`, `α_C = 0.10`) are for demonstration only; they are not measured properties of a named alloy.

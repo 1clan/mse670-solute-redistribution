@@ -15,15 +15,17 @@ function fs_slider
 %
 %   Tiller et al. (diffusion-controlled planar growth), no solid diffusion
 %   and no liquid mixing. A boundary layer builds up ahead of the interface:
-%       CS(x) = C0*[k + (1-k)(1 - exp(-k*Pe*x))]   (initial transient)
-%       CS    = C0                                  (steady growth)
-%       CL(z) = C0*[1 + (1-k)/k * exp(-Pe*z)],  delta/L = 1/Pe
+%       CS(x) = C0*[k + (1-k)(1 - exp(-k*x/(delta/L)))]   (initial transient)
+%       CS    = C0                                        (steady growth)
+%       CL(z) = C0*[1 + (1-k)/k * exp(-z/(delta/L))]
+%       delta/L = D_L/(v*L),  L = 1 mm
 %
 %   Clyne-Kurz (finite solid back diffusion, mixed liquid):
 %       CL/C0 = [1 - (1-beta*k)*fs]^((k-1)/(1-beta*k))
 %       beta  = 2*alpha*(1-exp(-1/alpha)) - exp(-1/(2*alpha))
 %       alpha = 4*Ds*tf/lambda2^2
 %   The Won-Thomas option replaces alpha by alpha+ = 2*(alpha + alpha_C).
+%   beta can also be entered directly as a sensitivity parameter.
 %
 %   A second axes shows the composition along the bar. k is unrestricted
 %   (k > 0); it is not limited to 0 < k <= 1.
@@ -40,11 +42,14 @@ k    = 0.30;   % partition coefficient (k > 0)
 fs0  = 0.50;   % initial solid fraction
 
 % Model parameters
-pe0      = 20;       % Tiller Peclet number, Pe = v*L/D_L
+v0       = 20;       % Tiller growth velocity, um/s
+dl0      = 1.0;      % Tiller liquid diffusivity, units of 1e-9 m^2/s
+L0       = 1e-3;     % Tiller characteristic length, m (1 mm)
 ds0      = 0.1;      % solid diffusivity, units of 1e-12 m^2/s
 tf0      = 100;      % local solidification time, s
 lambda20 = 20;       % secondary dendrite arm spacing, microns
 alphaC0  = 0.10;     % Won-Thomas coarsening constant
+beta0    = 0.193253; % direct Clyne-Kurz beta (when override is enabled)
 
 solidColor  = [0.06 0.46 0.43];
 liquidColor = [0.76 0.25 0.05];
@@ -117,52 +122,65 @@ c0Field = uieditfield(ctrl,'numeric','Limits',[0.01 100], ...
 c0Field.Layout.Row = 5; c0Field.Layout.Column = 2;
 
 % Model-specific parameter panel
-pg = uigridlayout(ctrl,[6 2]);
+pg = uigridlayout(ctrl,[8 2]);
 pg.Layout.Row = 6; pg.Layout.Column = [1 2];
-pg.RowHeight = {30,30,30,30,30,26};
+pg.RowHeight = {30,30,30,30,30,30,26,30};
 pg.ColumnWidth = {'1x',120};
 pg.Padding = [0 0 0 0];
 pg.RowSpacing = 4;
 pg.Visible = 'off';
 
-peLbl = uilabel(pg);
-peLbl.Layout.Row = 1; peLbl.Layout.Column = 1;
-peLbl.Text = 'Peclet number, Pe = vL/D_L';
-peField = uieditfield(pg,'numeric','Limits',[1 200], ...
-    'Value',pe0,'ValueDisplayFormat','%.4g');
-peField.Layout.Row = 1; peField.Layout.Column = 2;
+vLbl = uilabel(pg);
+vLbl.Layout.Row = 1; vLbl.Layout.Column = 1;
+vLbl.Text = 'Growth velocity, v (um/s)';
+vField = uieditfield(pg,'numeric','Limits',[0.01 100000], ...
+    'Value',v0,'ValueDisplayFormat','%.4g');
+vField.Layout.Row = 1; vField.Layout.Column = 2;
+
+dlLbl = uilabel(pg);
+dlLbl.Layout.Row = 2; dlLbl.Layout.Column = 1;
+dlLbl.Text = 'D_L (x10^-9 m^2/s)';
+dlField = uieditfield(pg,'numeric','Limits',[0.0001 1000], ...
+    'Value',dl0,'ValueDisplayFormat','%.4g');
+dlField.Layout.Row = 2; dlField.Layout.Column = 2;
 
 dsLbl = uilabel(pg);
-dsLbl.Layout.Row = 2; dsLbl.Layout.Column = 1;
+dsLbl.Layout.Row = 3; dsLbl.Layout.Column = 1;
 dsLbl.Text = 'D_s (x10^-12 m^2/s)';
 dsField = uieditfield(pg,'numeric','Limits',[0 1000], ...
     'Value',ds0,'ValueDisplayFormat','%.4g');
-dsField.Layout.Row = 2; dsField.Layout.Column = 2;
+dsField.Layout.Row = 3; dsField.Layout.Column = 2;
 
 tfLbl = uilabel(pg);
-tfLbl.Layout.Row = 3; tfLbl.Layout.Column = 1;
+tfLbl.Layout.Row = 4; tfLbl.Layout.Column = 1;
 tfLbl.Text = 'Solidification time, t_f (s)';
 tfField = uieditfield(pg,'numeric','Limits',[0 100000], ...
     'Value',tf0,'ValueDisplayFormat','%.4g');
-tfField.Layout.Row = 3; tfField.Layout.Column = 2;
+tfField.Layout.Row = 4; tfField.Layout.Column = 2;
 
 lamLbl = uilabel(pg);
-lamLbl.Layout.Row = 4; lamLbl.Layout.Column = 1;
+lamLbl.Layout.Row = 5; lamLbl.Layout.Column = 1;
 lamLbl.Text = 'Arm spacing, lambda_2 (microns)';
 lamField = uieditfield(pg,'numeric','Limits',[0.01 10000], ...
     'Value',lambda20,'ValueDisplayFormat','%.4g');
-lamField.Layout.Row = 4; lamField.Layout.Column = 2;
+lamField.Layout.Row = 5; lamField.Layout.Column = 2;
 
 aCLbl = uilabel(pg);
-aCLbl.Layout.Row = 5; aCLbl.Layout.Column = 1;
+aCLbl.Layout.Row = 6; aCLbl.Layout.Column = 1;
 aCLbl.Text = 'Won-Thomas constant, alpha_C';
 aCField = uieditfield(pg,'numeric','Limits',[0 10], ...
     'Value',alphaC0,'ValueDisplayFormat','%.3f');
-aCField.Layout.Row = 5; aCField.Layout.Column = 2;
+aCField.Layout.Row = 6; aCField.Layout.Column = 2;
 
 wtCheck = uicheckbox(pg,'Text','Won-Thomas: alpha+ = 2(alpha + alpha_C)', ...
     'Value',false);
-wtCheck.Layout.Row = 6; wtCheck.Layout.Column = [1 2];
+wtCheck.Layout.Row = 7; wtCheck.Layout.Column = [1 2];
+
+betaCheck = uicheckbox(pg,'Text','Use beta directly','Value',false);
+betaCheck.Layout.Row = 8; betaCheck.Layout.Column = 1;
+betaField = uieditfield(pg,'numeric','Limits',[0 1], ...
+    'Value',beta0,'ValueDisplayFormat','%.4f');
+betaField.Layout.Row = 8; betaField.Layout.Column = 2;
 
 lblView = uilabel(ctrl);
 lblView.Layout.Row = 7; lblView.Layout.Column = 1;
@@ -303,12 +321,15 @@ sld.ValueChangedFcn  = @(src,event) updateDisplay(src.Value);
 modelDrop.ValueChangedFcn = @(src,event) onModelChanged();
 kField.ValueChangedFcn    = @(src,event) updateDisplay();
 c0Field.ValueChangedFcn   = @(src,event) updateDisplay();
-peField.ValueChangedFcn   = @(src,event) updateDisplay();
+vField.ValueChangedFcn    = @(src,event) updateDisplay();
+dlField.ValueChangedFcn   = @(src,event) updateDisplay();
 dsField.ValueChangedFcn   = @(src,event) updateDisplay();
 tfField.ValueChangedFcn   = @(src,event) updateDisplay();
 lamField.ValueChangedFcn  = @(src,event) updateDisplay();
 aCField.ValueChangedFcn   = @(src,event) updateDisplay();
 wtCheck.ValueChangedFcn   = @(src,event) updateDisplay();
+betaField.ValueChangedFcn = @(src,event) updateDisplay();
+betaCheck.ValueChangedFcn = @(src,event) updateDisplay();
 viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
 
     function tf = isScheil()
@@ -335,22 +356,29 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
     function updatePanelLayout()
         if isTiller()
             pg.Visible = 'on';
-            pg.RowHeight = {30,0,0,0,0,0};
-            ctrl.RowHeight = {32,22,42,30,30,52,28,66,40};
-            set([peLbl peField],'Visible','on');
+            pg.RowHeight = {30,30,0,0,0,0,0,0};
+            ctrl.RowHeight = {32,22,42,30,30,88,28,66,40};
+            set([vLbl vField dlLbl dlField],'Visible','on');
             set([dsLbl dsField tfLbl tfField lamLbl lamField ...
-                 aCLbl aCField wtCheck],'Visible','off');
+                 aCLbl aCField wtCheck betaCheck betaField],'Visible','off');
         elseif isCK()
             pg.Visible = 'on';
-            pg.RowHeight = {0,30,30,30,30,26};
-            ctrl.RowHeight = {32,22,42,30,30,170,28,66,40};
-            set([peLbl peField],'Visible','off');
+            pg.RowHeight = {0,0,30,30,30,30,26,30};
+            ctrl.RowHeight = {32,22,42,30,30,204,28,66,40};
+            set([vLbl vField dlLbl dlField],'Visible','off');
             set([dsLbl dsField tfLbl tfField lamLbl lamField ...
-                 aCLbl aCField wtCheck],'Visible','on');
+                 aCLbl aCField wtCheck betaCheck betaField],'Visible','on');
         else
             pg.Visible = 'off';
             ctrl.RowHeight = {32,22,42,30,30,0,28,66,40};
         end
+    end
+
+    % ── Tiller ─────────────────────────────────────────────
+    function d = deltaNow()
+        v = max(vField.Value*1e-6, 1e-12);
+        dl = max(dlField.Value*1e-9, 1e-15);
+        d = dl/(v*L0);
     end
 
     % ── Clyne-Kurz ─────────────────────────────────────────
@@ -367,6 +395,10 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
     end
 
     function b = betaCK(a)
+        if betaCheck.Value
+            b = max(0,min(1,betaField.Value));
+            return;
+        end
         if ~(a > 0)
             b = 0;
         elseif isinf(a)
@@ -402,8 +434,8 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
     end
 
     % ── Tiller et al. ──────────────────────────────────────
-    function [x,S,I] = tillerProfile(kVal,peVal)
-        key = sprintf('%.12g|%.12g',kVal,peVal);
+    function [x,S,I] = tillerProfile(kVal,deltaVal)
+        key = sprintf('%.12g|%.12g',kVal,deltaVal);
         if strcmp(key,tillerKey)
             x = tillerX; S = tillerS; I = tillerI;
             return;
@@ -423,7 +455,7 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
             for it = 1:8
                 Ii = I(ig-1) + 0.5*(sPrev + s)*dx;
                 deficit = xx - Ii;
-                cStar = 1 + deficit*peVal/(1 - exp(-peVal*l));
+                cStar = 1 + deficit/(deltaVal*(1 - exp(-l/deltaVal)));
                 s = kVal*cStar;
             end
             S(ig) = s;
@@ -435,16 +467,16 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
         tillerI = I;
     end
 
-    function v = tillerSAt(fsVal,kVal,peVal)
+    function v = tillerSAt(fsVal,kVal,deltaVal)
         if fsVal >= 1 - 1e-12
             v = Inf;
             return;
         end
-        [x,S,~] = tillerProfile(kVal,peVal);
+        [x,S,~] = tillerProfile(kVal,deltaVal);
         v = interp1(x,S,min(max(fsVal,0),x(end)));
     end
 
-    function v = tillerAvgAt(fsVal,kVal,peVal)
+    function v = tillerAvgAt(fsVal,kVal,deltaVal)
         if fsVal < 1e-9
             v = kVal;
             return;
@@ -452,11 +484,11 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
             v = 1;
             return;
         end
-        [x,~,I] = tillerProfile(kVal,peVal);
+        [x,~,I] = tillerProfile(kVal,deltaVal);
         v = interp1(x,I,min(fsVal,x(end)))/fsVal;
     end
 
-    function v = tillerCLAvgAt(fsVal,kVal,peVal)
+    function v = tillerCLAvgAt(fsVal,kVal,deltaVal)
         if fsVal >= 1 - 1e-12
             v = Inf;
             return;
@@ -464,7 +496,7 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
             v = 1;
             return;
         end
-        [x,~,I] = tillerProfile(kVal,peVal);
+        [x,~,I] = tillerProfile(kVal,deltaVal);
         Ii = interp1(x,I,min(fsVal,x(end)));
         v = (1 - Ii)/(1 - fsVal);
     end
@@ -473,8 +505,8 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
     function top = yTopMain()
         kVal = kField.Value;
         if isTiller()
-            peVal = peField.Value;
-            csCap = tillerSAt(0.99,kVal,peVal);
+            deltaVal = deltaNow();
+            csCap = tillerSAt(0.99,kVal,deltaVal);
             clCap = csCap/kVal;
             top = min(25, 1.06*max([1 kVal csCap clCap]));
         elseif isCK()
@@ -534,10 +566,10 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
 
         % ── Current compositions, normalized to C0 ──
         if isTiller()
-            csN = tillerSAt(fsNow,kNow,peField.Value);
+            csN = tillerSAt(fsNow,kNow,deltaNow());
             clN = csN/kNow;
-            avgN = tillerAvgAt(fsNow,kNow,peField.Value);
-            clAvgN = tillerCLAvgAt(fsNow,kNow,peField.Value);
+            avgN = tillerAvgAt(fsNow,kNow,deltaNow());
+            clAvgN = tillerCLAvgAt(fsNow,kNow,deltaNow());
         elseif isCK()
             clN = ckCLNorm(fsNow,kNow);
             csN = kNow*clN;
@@ -571,7 +603,7 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
 
         % ── Main curves ──
         if isTiller()
-            [tx,tS,~] = tillerProfile(kNow,peField.Value);
+            [tx,tS,~] = tillerProfile(kNow,deltaNow());
             csCurve = interp1(tx,tS,fsGrid);
             clCurve = csCurve/kNow;
         elseif isCK()
@@ -603,9 +635,9 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
 
         % ── Tiller stage bands ──
         if isTiller()
-            peVal = peField.Value;
-            xInit = min(0.45, 1/(kNow*peVal));
-            xFinal = max(0.55, 1 - 1/peVal);
+            delta = deltaNow();
+            xInit = min(0.45, delta/kNow);
+            xFinal = max(0.55, 1 - delta);
             if xFinal <= xInit
                 xFinal = min(1, xInit + 1e-3);
             end
@@ -638,7 +670,7 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
             xSolid = [0 0];
             ySolid = [NaN NaN];
         elseif isTiller()
-            [tx,tS,~] = tillerProfile(kNow,peField.Value);
+            [tx,tS,~] = tillerProfile(kNow,deltaNow());
             xSolid = linspace(0,fsNow,220);
             ySolid = interp1(tx,tS,xSolid);
         elseif isCK()
@@ -658,7 +690,7 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
         if fsNow < 1 - 1e-9 && isfinite(clN)
             if isTiller()
                 z = linspace(0,1-fsNow,140);
-                yLiquid = 1 + (clN - 1)*exp(-peField.Value*z);
+                yLiquid = 1 + (clN - 1)*exp(-z/deltaNow());
                 xLiquid = fsNow + z;
                 yLiquid(~isfinite(yLiquid)) = NaN;
                 set(hSpatialL,'XData',xLiquid,'YData',yLiquid, ...
@@ -688,7 +720,7 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
 
         % Tiller boundary-layer thickness marker
         if isTiller() && fsNow < 1 - 1e-9
-            delta = 1/peField.Value;
+            delta = deltaNow();
             zEnd = min(delta, 1 - fsNow);
             if zEnd > 0.004
                 yD = 0.07*yTopS;
@@ -726,9 +758,9 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
         % ── Labels, equations, readout ──
         if isTiller()
             head.Text = 'SOLUTE REDISTRIBUTION  |  TILLER ET AL.';
-            eq.Text = {'C_S(x) = C_0[k + (1-k)(1 - e^{-k Pe x})]', ...
-                       'C_L(z) = C_0[1 + (1-k)/k e^{-Pe z}]', ...
-                       '\delta/L = 1/Pe'};
+            eq.Text = {'C_S(x) = C_0[k + (1-k)(1 - e^{-k x/(\delta/L)})]', ...
+                       'C_L(z) = C_0[1 + (1-k)/k e^{-z/(\delta/L)}]', ...
+                       '\delta/L = D_L/(vL),  L = 1 mm'};
             note.Text = ['No solid diffusion (D_S = 0), no liquid mixing. ' ...
                 'Initial transient -> steady C_S = C_0 -> final transient.'];
             hCS.DisplayName = 'Solid (interface), C_S';
@@ -747,7 +779,7 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
                 sprintf('Average solid      C_S,avg = %s wt.%%',fmtNum(avgNow))
                 sprintf('Liquid (interface) C_L* = %s wt.%%',fmtNum(clNow))
                 sprintf('Average liquid     C_L,avg = %s wt.%%',fmtNum(clAvgNow))
-                sprintf('Boundary layer     delta/L = %.4f',1/peField.Value)
+                sprintf('Boundary layer     delta/L = %.4f',deltaNow())
                 balanceText
                 };
         elseif isCK()
@@ -758,7 +790,11 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
             eq.Text = {'C_L/C_0 = [1 - (1-\beta k) f_s]^{(k-1)/(1-\beta k)}', ...
                        '\beta = 2\alpha(1 - e^{-1/\alpha}) - e^{-1/(2\alpha)}', ...
                        '\alpha = 4 D_s t_f / \lambda_2^2'};
-            if wtCheck.Value
+            if betaCheck.Value
+                note.Text = sprintf(['Finite back diffusion; mixed liquid. ' ...
+                    'beta = %.4g (direct override; alpha and Won-Thomas bypassed).'], ...
+                    bCK);
+            elseif wtCheck.Value
                 note.Text = sprintf(['Finite back diffusion; mixed liquid. ' ...
                     'alpha = %.4g, alpha+ = %.4g, beta = %.4g (Won-Thomas).'], ...
                     aB, aE, bCK);
@@ -776,12 +812,17 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
                 balanceText = sprintf('Mass balance: %.6f wt.%%  (C_0 = %.3f)', ...
                     bals*c0Now, c0Now);
             end
+            if betaCheck.Value
+                betaLine = sprintf('beta = %.5g (direct override)',bCK);
+            else
+                betaLine = sprintf('alpha = %.5g   beta = %.5g',aE,bCK);
+            end
             readout.Value = {
                 'Model   Clyne-Kurz (finite back diffusion, mixed liquid)'
                 sprintf('Solid (interface)  C_S* = %s wt.%%',fmtNum(csNow))
                 sprintf('Average solid      C_S,avg = %s wt.%%',fmtNum(avgNow))
                 sprintf('Liquid             C_L = %s wt.%%',fmtNum(clNow))
-                sprintf('alpha = %.5g   beta = %.5g',aE,bCK)
+                betaLine
                 balanceText
                 };
         elseif isScheil()
