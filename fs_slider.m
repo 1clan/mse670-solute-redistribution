@@ -30,6 +30,11 @@ function fs_slider
 %   A second axes shows the composition along the bar. k is unrestricted
 %   (k > 0); it is not limited to 0 < k <= 1.
 %
+%   The browser version at index.html also exposes logarithmic k and C_0
+%   sliders and a Play button for every parameter. This app mirrors them:
+%   k and C_0 each have a slider plus an editable numeric field, and the
+%   four triangular buttons animate f_s, T, k or C_0 back and forth.
+%
 %   HOW TO RUN
 %       Put this file in the Current Folder and run:  fs_slider
 %
@@ -71,7 +76,7 @@ guideColor  = [0.15 0.30 0.55];
 
 %% UI
 fig = uifigure('Name','Solute redistribution: four solidification models', ...
-    'Color',[0.96 0.98 1.00], 'Position',[80 40 1180 940]);
+    'Color',[0.96 0.98 1.00], 'Position',[60 30 1180 1000]);
 
 g = uigridlayout(fig,[3 2]);
 g.RowHeight = {40,'1x',150};
@@ -87,10 +92,10 @@ head.FontSize = 18; head.FontWeight = 'bold';
 head.FontColor = [0.06 0.13 0.20];
 
 % Control panel
-ctrl = uigridlayout(g,[13 2]);
+ctrl = uigridlayout(g,[15 3]);
 ctrl.Layout.Row = 2; ctrl.Layout.Column = 1;
-ctrl.RowHeight = {32,22,42,34,26,20,42,30,30,0,28,60,34};
-ctrl.ColumnWidth = {'1x',120};
+ctrl.RowHeight = {32,22,42,34,26,20,42,30,30,30,30,0,28,60,34};
+ctrl.ColumnWidth = {'1x',96,34};
 ctrl.Padding = [0 0 0 0];
 ctrl.RowSpacing = 6;
 
@@ -100,7 +105,7 @@ modelDrop = uidropdown(ctrl, ...
              'No solid diffusion, limited liquid diffusion', ...
              'Clyne-Kurz (back diffusion)'}, ...
     'Value','Equilibrium (lever rule)');
-modelDrop.Layout.Row = 1; modelDrop.Layout.Column = [1 2];
+modelDrop.Layout.Row = 1; modelDrop.Layout.Column = [1 3];
 
 lblT = uilabel(ctrl);
 lblT.Layout.Row = 2; lblT.Layout.Column = 1;
@@ -113,14 +118,18 @@ valT.HorizontalAlignment = 'right';
 valT.FontWeight = 'bold';
 valT.FontColor = liquidColor;
 
+btnPlayT = uibutton(ctrl,'push','Text',char(9654),'FontSize',11);
+btnPlayT.Layout.Row = 2; btnPlayT.Layout.Column = 3;
+btnPlayT.Tooltip = 'Animate T from 548 to 700 C and back';
+
 tempSld = uislider(ctrl,'Limits',[Teut 700],'Value',T0);
-tempSld.Layout.Row = 3; tempSld.Layout.Column = [1 2];
+tempSld.Layout.Row = 3; tempSld.Layout.Column = [1 3];
 tempSld.MajorTicks = [Teut 600 648 700];
 tempSld.MajorTickLabels = {'548','600','648','700'};
 tempSld.MinorTicks = [];
 
 tieLbl = uilabel(ctrl);
-tieLbl.Layout.Row = 4; tieLbl.Layout.Column = [1 2];
+tieLbl.Layout.Row = 4; tieLbl.Layout.Column = [1 3];
 tieLbl.Text = 'Liquidus tie-line: C_L = 4.80, C_S = 0.830 wt.%';
 tieLbl.FontSize = 11;
 tieLbl.FontColor = [0.22 0.30 0.40];
@@ -128,7 +137,7 @@ tieLbl.WordWrap = 'on';
 
 tempLinkCheck = uicheckbox(ctrl, ...
     'Text','Derive k, D_s and D_L from T','Value',true);
-tempLinkCheck.Layout.Row = 5; tempLinkCheck.Layout.Column = [1 2];
+tempLinkCheck.Layout.Row = 5; tempLinkCheck.Layout.Column = [1 3];
 
 lblFs = uilabel(ctrl);
 lblFs.Layout.Row = 6; lblFs.Layout.Column = 1;
@@ -141,31 +150,59 @@ valFs.HorizontalAlignment = 'right';
 valFs.FontWeight = 'bold';
 valFs.FontColor = solidColor;
 
+btnPlayFs = uibutton(ctrl,'push','Text',char(9654),'FontSize',11);
+btnPlayFs.Layout.Row = 6; btnPlayFs.Layout.Column = 3;
+btnPlayFs.Tooltip = 'Animate f_s from 0 to 1 and back';
+
 sld = uislider(ctrl,'Limits',[0 1],'Value',fs0);
-sld.Layout.Row = 7; sld.Layout.Column = [1 2];
+sld.Layout.Row = 7; sld.Layout.Column = [1 3];
 sld.MajorTicks = [0 0.25 0.50 0.75 1.00];
 sld.MajorTickLabels = {'0','0.25','0.50','0.75','1.0'};
 sld.MinorTicks = [];
 
 lblK = uilabel(ctrl);
 lblK.Layout.Row = 8; lblK.Layout.Column = 1;
-lblK.Text = 'Partition coefficient, k';
+lblK.Text = 'Partition coefficient, k (log slider)';
 
 kField = uieditfield(ctrl,'numeric','Limits',[0.01 100], ...
     'Value',k,'ValueDisplayFormat','%.4f');
 kField.Layout.Row = 8; kField.Layout.Column = 2;
 
+btnPlayK = uibutton(ctrl,'push','Text',char(9654),'FontSize',11);
+btnPlayK.Layout.Row = 8; btnPlayK.Layout.Column = 3;
+btnPlayK.Tooltip = 'Animate k over 0.01-100 and turn off temperature coupling';
+
+logMin = 0.01;
+logMax = 100;
+kSld = uislider(ctrl,'Limits',[0 1], ...
+    'Value',(log10(k) - log10(logMin))/(log10(logMax) - log10(logMin)));
+kSld.Layout.Row = 9; kSld.Layout.Column = [1 3];
+kSld.MajorTicks = [0 0.25 0.50 0.75 1];
+kSld.MajorTickLabels = {'0.01','0.1','1','10','100'};
+kSld.MinorTicks = [];
+
 lblC0 = uilabel(ctrl);
-lblC0.Layout.Row = 9; lblC0.Layout.Column = 1;
-lblC0.Text = 'Nominal composition, C_0 (wt.%)';
+lblC0.Layout.Row = 10; lblC0.Layout.Column = 1;
+lblC0.Text = 'Nominal composition, C_0 (log slider)';
 
 c0Field = uieditfield(ctrl,'numeric','Limits',[0.01 100], ...
     'Value',C0,'ValueDisplayFormat','%.2f');
-c0Field.Layout.Row = 9; c0Field.Layout.Column = 2;
+c0Field.Layout.Row = 10; c0Field.Layout.Column = 2;
+
+btnPlayC0 = uibutton(ctrl,'push','Text',char(9654),'FontSize',11);
+btnPlayC0.Layout.Row = 10; btnPlayC0.Layout.Column = 3;
+btnPlayC0.Tooltip = 'Animate C_0 over 0.01-100 wt.%';
+
+c0Sld = uislider(ctrl,'Limits',[0 1], ...
+    'Value',(log10(C0) - log10(logMin))/(log10(logMax) - log10(logMin)));
+c0Sld.Layout.Row = 11; c0Sld.Layout.Column = [1 3];
+c0Sld.MajorTicks = [0 0.25 0.50 0.75 1];
+c0Sld.MajorTickLabels = {'0.01','0.1','1','10','100'};
+c0Sld.MinorTicks = [];
 
 % Model-specific parameter panel
 pg = uigridlayout(ctrl,[8 2]);
-pg.Layout.Row = 10; pg.Layout.Column = [1 2];
+pg.Layout.Row = 12; pg.Layout.Column = [1 3];
 pg.RowHeight = {30,30,30,30,30,30,26,30};
 pg.ColumnWidth = {'1x',120};
 pg.Padding = [0 0 0 0];
@@ -225,15 +262,15 @@ betaField = uieditfield(pg,'numeric','Limits',[0 1], ...
 betaField.Layout.Row = 8; betaField.Layout.Column = 2;
 
 lblView = uilabel(ctrl);
-lblView.Layout.Row = 11; lblView.Layout.Column = 1;
+lblView.Layout.Row = 13; lblView.Layout.Column = 1;
 lblView.Text = 'Graph view';
 
 viewDrop = uidropdown(ctrl, ...
     'Items',{'Auto zoom','Fixed scale'},'Value','Auto zoom');
-viewDrop.Layout.Row = 11; viewDrop.Layout.Column = 2;
+viewDrop.Layout.Row = 13; viewDrop.Layout.Column = 2;
 
 eq = uilabel(ctrl);
-eq.Layout.Row = 12; eq.Layout.Column = [1 2];
+eq.Layout.Row = 14; eq.Layout.Column = [1 3];
 eq.Text = {'C_S = k C_0 / [1 - (1-k) f_s]', ...
            'C_L =     C_0 / [1 - (1-k) f_s]'};
 eq.FontName = 'Consolas';
@@ -243,7 +280,7 @@ eq.HorizontalAlignment = 'center';
 eq.BackgroundColor = [0.96 0.97 0.99];
 
 note = uilabel(ctrl);
-note.Layout.Row = 13; note.Layout.Column = [1 2];
+note.Layout.Row = 15; note.Layout.Column = [1 3];
 note.Text = 'Complete diffusion in solid and liquid (equilibrium limit).';
 note.FontSize = 11;
 note.FontColor = [0.35 0.42 0.50];
@@ -357,28 +394,93 @@ limitedI = [];
 % Temperature shown by the slider (event.Value during live dragging)
 tempDisplay = T0;
 
+% Play-animation state: one parameter animates at a time.
+animTarget = '';
+animDir = 1;
+animPos = 0;
+animTimer = [];
+
 % Initial render
 updatePanelLayout();
 updateDisplay();
 
-sld.ValueChangingFcn = @(src,event) updateDisplay(event.Value);
-sld.ValueChangedFcn  = @(src,event) updateDisplay(src.Value);
-tempSld.ValueChangingFcn = @(src,event) updateTemperature(event.Value);
-tempSld.ValueChangedFcn  = @(src,event) updateTemperature(event.Value);
-tempLinkCheck.ValueChangedFcn = @(src,event) updateDisplay();
+sld.ValueChangingFcn = @(src,event) manualFs(event.Value);
+sld.ValueChangedFcn  = @(src,event) manualFs(src.Value);
+tempSld.ValueChangingFcn = @(src,event) manualTemp(event.Value);
+tempSld.ValueChangedFcn  = @(src,event) manualTemp(event.Value);
+tempLinkCheck.ValueChangedFcn = @(src,event) onTempLinkChanged();
 modelDrop.ValueChangedFcn = @(src,event) onModelChanged();
-kField.ValueChangedFcn    = @(src,event) updateDisplay();
-c0Field.ValueChangedFcn   = @(src,event) updateDisplay();
-vField.ValueChangedFcn    = @(src,event) updateDisplay();
-dlField.ValueChangedFcn   = @(src,event) updateDisplay();
-dsField.ValueChangedFcn   = @(src,event) updateDisplay();
-tfField.ValueChangedFcn   = @(src,event) updateDisplay();
-lamField.ValueChangedFcn  = @(src,event) updateDisplay();
-aCField.ValueChangedFcn   = @(src,event) updateDisplay();
-wtCheck.ValueChangedFcn   = @(src,event) updateDisplay();
-betaField.ValueChangedFcn = @(src,event) updateDisplay();
-betaCheck.ValueChangedFcn = @(src,event) updateDisplay();
-viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
+kField.ValueChangedFcn    = @(src,event) onKFieldChanged();
+c0Field.ValueChangedFcn   = @(src,event) onC0FieldChanged();
+kSld.ValueChangingFcn     = @(src,event) onKSldChanged(event.Value);
+kSld.ValueChangedFcn      = @(src,event) onKSldChanged(src.Value);
+c0Sld.ValueChangingFcn    = @(src,event) onC0SldChanged(event.Value);
+c0Sld.ValueChangedFcn     = @(src,event) onC0SldChanged(src.Value);
+vField.ValueChangedFcn    = @(src,event) onOtherControlChanged();
+dlField.ValueChangedFcn   = @(src,event) onOtherControlChanged();
+dsField.ValueChangedFcn   = @(src,event) onOtherControlChanged();
+tfField.ValueChangedFcn   = @(src,event) onOtherControlChanged();
+lamField.ValueChangedFcn  = @(src,event) onOtherControlChanged();
+aCField.ValueChangedFcn   = @(src,event) onOtherControlChanged();
+wtCheck.ValueChangedFcn   = @(src,event) onOtherControlChanged();
+betaField.ValueChangedFcn = @(src,event) onOtherControlChanged();
+betaCheck.ValueChangedFcn = @(src,event) onOtherControlChanged();
+viewDrop.ValueChangedFcn  = @(src,event) onOtherControlChanged();
+btnPlayFs.ButtonPushedFcn = @(src,event) toggleAnim('fs');
+btnPlayT.ButtonPushedFcn  = @(src,event) toggleAnim('T');
+btnPlayK.ButtonPushedFcn  = @(src,event) toggleAnim('k');
+btnPlayC0.ButtonPushedFcn = @(src,event) toggleAnim('c0');
+fig.CloseRequestFcn       = @(src,event) onClose();
+
+    function manualFs(v)
+        stopAnim();
+        updateDisplay(v);
+    end
+
+    function manualTemp(Tnew)
+        stopAnim();
+        updateTemperature(Tnew);
+    end
+
+    function onTempLinkChanged()
+        stopAnim();
+        updateDisplay();
+    end
+
+    function onKFieldChanged()
+        stopAnim();
+        % Typing a value is a manual override: stop deriving k from T.
+        if tempLinkCheck.Value
+            tempLinkCheck.Value = false;
+        end
+        updateDisplay();
+    end
+
+    function onC0FieldChanged()
+        stopAnim();
+        updateDisplay();
+    end
+
+    function onKSldChanged(p)
+        stopAnim();
+        if tempLinkCheck.Value
+            tempLinkCheck.Value = false;
+        end
+        kField.Value = min(logMax,max(logMin,logVal(p)));
+        updateDisplay();
+    end
+
+    function onC0SldChanged(p)
+        stopAnim();
+        c0Field.Value = min(logMax,max(logMin,logVal(p)));
+        updateDisplay();
+    end
+
+    function onOtherControlChanged()
+        stopAnim();
+        updateDisplay();
+    end
+
 
     function tf = isScheil()
         tf = (modelDrop.ValueIndex == 2);
@@ -397,6 +499,7 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
     end
 
     function onModelChanged()
+        stopAnim();
         updatePanelLayout();
         updateDisplay();
     end
@@ -406,24 +509,143 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
         updateDisplay();
     end
 
+    % ── Parameter animation ────────────────────────────────
+    % The four triangular buttons sweep one parameter between the ends of
+    % its range and back. A timer drives the motion; starting any button
+    % stops the previous animation, and any manual edit also stops it.
+    function p = logPos(v)
+        p = (log10(min(logMax,max(logMin,v))) - log10(logMin)) / ...
+            (log10(logMax) - log10(logMin));
+        p = max(0,min(1,p));
+    end
+
+    function v = logVal(p)
+        p = max(0,min(1,p));
+        v = 10^(log10(logMin) + p*(log10(logMax) - log10(logMin)));
+    end
+
+    function p = paramPos(target)
+        switch target
+            case 'fs'
+                p = sld.Value;
+            case 'T'
+                p = (tempDisplay - Teut)/(700 - Teut);
+            case 'k'
+                p = logPos(kField.Value);
+            case 'c0'
+                p = logPos(c0Field.Value);
+            otherwise
+                p = 0;
+        end
+        p = max(0,min(1,p));
+    end
+
+    function syncParamSliders()
+        kSld.Value = logPos(kField.Value);
+        c0Sld.Value = logPos(c0Field.Value);
+    end
+
+    function updateAnimButtons()
+        btns = [btnPlayFs btnPlayT btnPlayK btnPlayC0];
+        tgts = {'fs','T','k','c0'};
+        for ibtn = 1:numel(btns)
+            if strcmp(animTarget,tgts{ibtn})
+                btns(ibtn).Text = '||';
+            else
+                btns(ibtn).Text = char(9654);
+            end
+        end
+    end
+
+    function stopAnim()
+        if ~isempty(animTimer) && isvalid(animTimer)
+            stop(animTimer);
+        end
+        animTarget = '';
+        updateAnimButtons();
+    end
+
+    function toggleAnim(target)
+        if strcmp(animTarget,target)
+            stopAnim();
+            return;
+        end
+        stopAnim();
+        animTarget = target;
+        animPos = paramPos(target);
+        animDir = 1;
+        if animPos >= 1 - 1e-9
+            animDir = -1;
+        end
+        % Animating k is a manual override, just like dragging its slider.
+        if strcmp(target,'k') && tempLinkCheck.Value
+            tempLinkCheck.Value = false;
+        end
+        if isempty(animTimer) || ~isvalid(animTimer)
+            animTimer = timer('ExecutionMode','fixedSpacing','Period',0.05, ...
+                'BusyMode','drop','TimerFcn',@(src,event) animStep());
+        end
+        updateAnimButtons();
+        start(animTimer);
+    end
+
+    function animStep()
+        if isempty(animTarget)
+            stopAnim();
+            return;
+        end
+        animPos = animPos + animDir*0.05*0.18;
+        if animPos >= 1
+            animPos = 1;
+            animDir = -1;
+        elseif animPos <= 0
+            animPos = 0;
+            animDir = 1;
+        end
+        switch animTarget
+            case 'fs'
+                sld.Value = round(animPos*1000)/1000;
+                updateDisplay();
+            case 'T'
+                Tnew = Teut + round(animPos*(700 - Teut)/0.5)*0.5;
+                tempDisplay = Tnew;
+                tempSld.Value = Tnew;
+                updateDisplay();
+            case 'k'
+                kField.Value = min(logMax,max(logMin,logVal(animPos)));
+                updateDisplay();
+            case 'c0'
+                c0Field.Value = min(logMax,max(logMin,logVal(animPos)));
+                updateDisplay();
+        end
+    end
+
+    function onClose()
+        stopAnim();
+        if ~isempty(animTimer) && isvalid(animTimer)
+            delete(animTimer);
+        end
+        delete(fig);
+    end
+
     function updatePanelLayout()
         if isLimitedLiquid()
             pg.Visible = 'on';
             pg.RowHeight = {30,30,0,0,0,0,0,0};
-            ctrl.RowHeight = {32,22,42,34,26,20,42,30,30,88,28,60,34};
+            ctrl.RowHeight = {32,22,42,34,26,20,42,30,30,30,30,88,28,60,34};
             set([vLbl vField dlLbl dlField],'Visible','on');
             set([dsLbl dsField tfLbl tfField lamLbl lamField ...
                  aCLbl aCField wtCheck betaCheck betaField],'Visible','off');
         elseif isCK()
             pg.Visible = 'on';
             pg.RowHeight = {0,0,30,30,30,30,26,30};
-            ctrl.RowHeight = {32,22,42,34,26,20,42,30,30,204,28,60,34};
+            ctrl.RowHeight = {32,22,42,34,26,20,42,30,30,30,30,204,28,60,34};
             set([vLbl vField dlLbl dlField],'Visible','off');
             set([dsLbl dsField tfLbl tfField lamLbl lamField ...
                  aCLbl aCField wtCheck betaCheck betaField],'Visible','on');
         else
             pg.Visible = 'off';
-            ctrl.RowHeight = {32,22,42,34,26,20,42,30,30,0,28,60,34};
+            ctrl.RowHeight = {32,22,42,34,26,20,42,30,30,30,30,0,28,60,34};
         end
     end
 
@@ -475,14 +697,15 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
             kField.Value  = kAtT(Tnow);
             dlField.Value = dlAtT(Tnow)*1e9;
             dsField.Value = dsAtT(Tnow)*1e12;
-            kField.Enable = 'off';
             dlField.Enable = 'off';
             dsField.Enable = 'off';
         else
-            kField.Enable = 'on';
             dlField.Enable = 'on';
             dsField.Enable = 'on';
         end
+        % k stays editable: typing or dragging its slider is a manual override.
+        kField.Enable = 'on';
+        kField.Tooltip = 'Type a value or move the k slider to override temperature coupling';
         valT.Text = sprintf('T = %.1f C',Tnow);
         tieLbl.Text = tieLineText(Tnow);
     end
@@ -689,6 +912,7 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
 
         Tnow = tempDisplay;
         syncTemperature(Tnow);
+        syncParamSliders();
 
         kNow  = kField.Value;
         c0Now = c0Field.Value;

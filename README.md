@@ -14,7 +14,7 @@ It comes in two versions that share the same model equations:
 - `index.html` — runs in any browser, no installation needed.
 - `fs_slider.m` — the same models in a MATLAB app.
 
-The browser version additionally provides the `k`/`C₀` sliders and the Play animation; the MATLAB app still uses typed fields for those values.
+Both versions provide the same controls: `f_s`, `T`, and logarithmic `k`/`C₀` sliders (each `k`/`C₀` slider paired with an editable number box) and a **Play** button for every parameter.
 
 **Live demo:** https://1clan.github.io/mse670-solute-redistribution/
 
@@ -31,7 +31,7 @@ Move the **solid fraction `f_s`** slider from 0 to 1 and watch:
 
 Use the **Graph view** switch to choose between `Auto zoom` (the along-bar chart rescales for readability) and `Fixed scale` (the axes, grid, and background stay put and only the plotted data changes as the slider moves).
 
-Press **▶ Play** beside the `f_s` slider to sweep the solid fraction from 0 to 1 and back; the button toggles to **❚❚ Pause**, and dragging the slider also stops the animation.
+Every parameter has its own **▶ Play** button: `f_s`, `T`, `k`, and `C₀`. Pressing one sweeps that parameter back and forth across its range and the button toggles to **❚❚ Pause**. Only one animation runs at a time — starting another takes over — and moving any slider or typing in a number box stops the animation. Playing `k` also turns temperature coupling off, exactly as moving the `k` slider does.
 
 ## Models
 
@@ -215,7 +215,8 @@ No installation or build step is needed.
 1. Open `index.html` in any modern browser (double-click it, or drag it into a browser window).
 2. Pick **Equilibrium**, **Scheil–Gulliver**, **No solid diffusion, limited liquid diffusion**, or **Clyne–Kurz**.
 3. Move the `T` slider to follow the liquidus tie-line, and the `f_s` slider to follow freezing.
-4. Optionally change `C_0`, `v`, `t_f`, `λ₂`, or untick the temperature coupling to set `k`, `D_S`, and `D_L` manually.
+4. Use the **▶ Play** buttons to animate `f_s`, `T`, `k`, or `C₀` hands-off; press again to pause.
+5. Optionally change `C_0`, `v`, `t_f`, `λ₂`, or untick the temperature coupling to set `k`, `D_S`, and `D_L` manually.
 
 If your browser restricts local files for any reason, serve the folder instead:
 
@@ -234,7 +235,7 @@ python3 -m http.server 8000
 fs_slider
 ```
 
-The MATLAB app requires R2020a or newer (`uifigure`, `uislider`, `uidropdown`, `uigridlayout`). It uses base MATLAB only.
+The MATLAB app requires R2020a or newer (`uifigure`, `uislider`, `uidropdown`, `uigridlayout`). It uses base MATLAB only. It mirrors the browser controls: `f_s`, `T`, `k`, and `C₀` each have a slider and a **▶** button, `k` and `C₀` keep editable number fields, and the animation runs on a 20 fps timer that stops on any manual edit or when the figure closes.
 
 ### Standalone model functions
 
@@ -262,7 +263,7 @@ outW = won_thomas_model(0.173, 4.8, 4.8e-15, 100, 20e-6, 0.9, 0.1);
 | Graph view | `Auto zoom` rescales the along-bar chart as `f_s` changes; `Fixed scale` locks the axes, grid, and background so only the plotted data moves with the slider. |
 | `T` slider | Interface temperature from 548 to 700 °C; default 648 °C. Sets the liquidus tie-line and, when coupled, `k(T)`, `D_S(T)`, and `D_L(T)`. |
 | `f_s` slider | Solid fraction, from 0 (all liquid) to 1 (all solid). |
-| Play | Animates `f_s` from 0 to 1 and back; click again to pause. Dragging the slider also pauses. |
+| Play | One button per parameter (`f_s`, `T`, `k`, `C₀`). Each animates its parameter back and forth; click again (or move any control) to pause. Starting a different animation stops the previous one. Playing `k` also switches temperature coupling off. |
 | `k` | Partition coefficient, `k = C_S*/C_L*`. Derived from the phase diagram as `C_S,eq(T)/C_L,eq(T)` when temperature coupling is on; `k ≈ 0.173` at 648 °C. A logarithmic slider spans 0.01–100 and the number box stays editable; moving the slider or typing a value switches coupling off so `k` is a manual override. |
 | `C_0` | Nominal solute concentration in wt.%. Default 4.8 wt.% (Al–4.8 wt.% Cu). A logarithmic slider spans 0.01–100 and the number box stays editable. |
 | `v` | Interface growth velocity, entered in µm/s. With `L = 1 mm`, the default `v = 20 µm/s` and `D_L = 2.4×10⁻⁹ m²/s` give `δ/L = 0.12`. |

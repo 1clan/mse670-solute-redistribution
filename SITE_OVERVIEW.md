@@ -6,7 +6,7 @@
 
 ## In one paragraph
 
-This is a single-page, browser-based teaching tool for **MSE 670 (Solidification)**. It visualises how a solute (copper) redistributes between the growing solid and the remaining liquid as an **Al–4.8 wt.% Cu** alloy freezes. You move the solid-fraction `f_s` and interface-temperature `T` sliders, plus logarithmic `k` and `C_0` sliders, and the page updates the solid and liquid compositions, an along-the-bar concentration profile, the liquidus tie-line, and a live mass-balance check. A **Play** button sweeps `f_s` back and forth for a hands-off animation. A model switch lets you compare four classic solidification models side by side: Equilibrium (lever rule), Scheil–Gulliver, no solid diffusion with limited liquid diffusion, and Clyne–Kurz with back diffusion.
+This is a single-page, browser-based teaching tool for **MSE 670 (Solidification)**. It visualises how a solute (copper) redistributes between the growing solid and the remaining liquid as an **Al–4.8 wt.% Cu** alloy freezes. You move the solid-fraction `f_s` and interface-temperature `T` sliders, plus logarithmic `k` and `C_0` sliders, and the page updates the solid and liquid compositions, an along-the-bar concentration profile, the liquidus tie-line, and a live mass-balance check. A **Play** button on every parameter sweeps `f_s`, `T`, `k`, or `C_0` back and forth for a hands-off animation. A model switch lets you compare four classic solidification models side by side: Equilibrium (lever rule), Scheil–Gulliver, no solid diffusion with limited liquid diffusion, and Clyne–Kurz with back diffusion.
 
 It is an **interactive graph / explanatory visualisation**, not a data-collection site, calculator service, or commercial product. There is no backend, no login, no tracking, and no external dependencies — the whole thing is one self-contained HTML file that can be opened offline.
 
@@ -48,7 +48,7 @@ Limiting behaviour built into the models:
 
 ## What the page shows
 
-- **Controls panel** — model switch, `f_s` slider (0 = all liquid, 1 = all solid) with a **▶ Play** button that animates `f_s` back and forth, temperature slider (548–700 °C), logarithmic `k` and `C_0` sliders paired with editable number boxes, and model-specific inputs (growth velocity `v`, `D_L`, `D_s`, local solidification time `t_f`, secondary dendrite arm spacing `λ₂`, `α_C`, direct `β`).
+- **Controls panel** — model switch, `f_s` slider (0 = all liquid, 1 = all solid), temperature slider (548–700 °C), logarithmic `k` and `C_0` sliders paired with editable number boxes, model-specific inputs (growth velocity `v`, `D_L`, `D_s`, local solidification time `t_f`, secondary dendrite arm spacing `λ₂`, `α_C`, direct `β`), and a **▶ Play** button on every parameter (`f_s`, `T`, `k`, `C_0`) that animates it back and forth.
 - **Current state readout** — `C_S` and `C_L` in wt.%, solid/liquid averages where relevant, the liquidus tie-line `C_L,eq(T)` / `C_S,eq(T)`, and the mass-balance check `f_s C_S,avg + (1 − f_s) C_L,avg = C_0`.
 - **Composition vs. solid fraction** — the main chart: solid and liquid composition (normalised by `C_0`) through the whole freezing range.
 - **Composition along the bar** — a schematic bar split into solidified (teal) and liquid (amber) segments, with the concentration profile beneath it and a solid–liquid connector at the interface.
@@ -90,7 +90,7 @@ At the 648 °C reference this gives `k ≈ 0.173`. Diffusivities are also scaled
   python3 -m http.server 8000
   # then visit http://localhost:8000
   ```
-- A matching **MATLAB app** (`fs_slider.m`) reproduces the same models and core `f_s`/`T` sliders and requires R2020a or newer (`uifigure`, `uislider`, etc.). The browser-only `k`/`C_0` sliders and Play animation are not yet mirrored there.
+- A matching **MATLAB app** (`fs_slider.m`) reproduces the same models and controls — `f_s`, `T`, `k`, and `C_0` sliders, editable `k`/`C_0` fields, and a **▶** play button for each parameter — and requires R2020a or newer (`uifigure`, `uislider`, etc.).
 - The same equations are also available as standalone MATLAB functions in `models/` (`equilibrium_model.m`, `scheil_model.m`, `limited_liquid_model.m`, `clyne_kurz_model.m`, `won_thomas_model.m`).
 
 ## Limitations and caveats
