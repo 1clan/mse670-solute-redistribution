@@ -317,6 +317,12 @@
     box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.13);
   }
 
+  .field input[type="number"]:disabled {
+    background: #eef2f7;
+    color: #5b6b7f;
+    cursor: not-allowed;
+  }
+
   .param-panel {
     margin-top: 18px;
     padding-top: 16px;
@@ -836,7 +842,7 @@
 
   table.compare .eq-col { color: #0f766e; }
   table.compare .scheil-col { color: #b45309; }
-  table.compare .tiller-col { color: #1d4ed8; }
+  table.compare .limited-col { color: #1d4ed8; }
   table.compare .ck-col { color: #7c3aed; }
 
   details.derivation {
@@ -923,9 +929,9 @@
       <div class="eyebrow">MSE 670 · Solidification</div>
       <h1>Solute redistribution<br />during solidification</h1>
       <p class="subtitle">
-        Move the solid-fraction slider to watch how the solid and liquid compositions evolve.
-        Compare equilibrium, Scheil&ndash;Gulliver, diffusion-controlled Tiller growth, and the
-        Clyne&ndash;Kurz back-diffusion model.
+        Al&ndash;4.8 wt.% Cu. Move the solid-fraction and temperature sliders to watch how the solid and
+        liquid compositions evolve. Compare equilibrium, Scheil&ndash;Gulliver, limited liquid diffusion
+        with no solid diffusion, and the Clyne&ndash;Kurz back-diffusion model.
       </p>
     </div>
     <div class="chip"><span class="dot"></span> 4 models · equilibrium to back diffusion</div>
@@ -940,7 +946,7 @@
         <div class="model-switch" role="group" aria-label="Solidification model">
           <button type="button" class="model-btn active" data-model="equilibrium" aria-pressed="true">Equilibrium</button>
           <button type="button" class="model-btn" data-model="scheil" aria-pressed="false">Scheil–Gulliver</button>
-          <button type="button" class="model-btn" data-model="tiller" aria-pressed="false">Tiller et al.</button>
+          <button type="button" class="model-btn" data-model="limited" aria-pressed="false">No solid diffusion, limited liquid diffusion</button>
           <button type="button" class="model-btn" data-model="clyne-kurz" aria-pressed="false">Clyne–Kurz</button>
         </div>
         <p class="model-blurb" id="modelBlurb">
@@ -967,20 +973,45 @@
           <div class="range-scale"><span>0 · all liquid</span><span>1 · all solid</span></div>
         </div>
 
+        <div class="slider-block">
+          <div class="slider-head">
+            <div class="slider-name">
+              Interface temperature, T
+              <small>Al–4.8 wt.% Cu liquidus tie-line</small>
+            </div>
+            <output class="value-badge" id="tempBadge" for="tempSlider">648</output>
+          </div>
+          <input
+            id="tempSlider"
+            type="range"
+            min="548"
+            max="700"
+            step="0.5"
+            value="648"
+            aria-label="Interface temperature in degrees Celsius"
+          />
+          <div class="range-scale"><span>548 °C · eutectic</span><span>700 °C · liquid</span></div>
+        </div>
+
         <div class="divider"></div>
 
         <div class="mini-grid">
           <div class="field">
-            <label for="kInput">Partition coefficient, k <span>(k &gt; 0)</span></label>
-            <input id="kInput" type="number" min="0.01" max="100" step="0.01" value="0.30" />
+            <label for="kInput">Partition coefficient, k <span>(from T)</span></label>
+            <input id="kInput" type="number" min="0.01" max="100" step="0.001" value="0.173" />
           </div>
           <div class="field">
             <label for="c0Input">Nominal composition, C<sub>0</sub> <span>(wt.%)</span></label>
-            <input id="c0Input" type="number" min="0.01" max="100" step="0.1" value="1.0" />
+            <input id="c0Input" type="number" min="0.01" max="100" step="0.1" value="4.8" />
           </div>
         </div>
 
-        <div class="param-panel" id="tillerPanel" hidden>
+        <label class="check-row" for="tempLinkToggle" style="margin-top: 10px;">
+          <input id="tempLinkToggle" type="checkbox" checked />
+          Derive k, D<sub>s</sub> and D<sub>L</sub> from T
+        </label>
+
+        <div class="param-panel" id="limitedPanel" hidden>
           <div class="mini-grid">
             <div class="field">
               <label for="velocityInput">Growth velocity, v <span>(µm/s)</span></label>
@@ -988,10 +1019,10 @@
             </div>
             <div class="field">
               <label for="dlInput">D<sub>L</sub> <span>(×10⁻⁹ m²/s)</span></label>
-              <input id="dlInput" type="number" min="0.0001" max="1000" step="0.01" value="1.0" />
+              <input id="dlInput" type="number" min="0.0001" max="1000" step="0.01" value="2.4" />
             </div>
           </div>
-          <p class="param-hint" id="tillerHint">
+          <p class="param-hint" id="limitedHint">
             Boundary layer δ/L = D<sub>L</sub>/(vL), with L = 1 mm.
             The initial transient is set by (δ/L)/k; keep δ/L below about 1.
           </p>
@@ -1001,7 +1032,7 @@
           <div class="mini-grid">
             <div class="field">
               <label for="dsInput">D<sub>s</sub> <span>(×10⁻¹² m²/s)</span></label>
-              <input id="dsInput" type="number" min="0" max="1000" step="0.01" value="0.1" />
+              <input id="dsInput" type="number" min="0" max="1000" step="0.0001" value="0.0048" />
             </div>
             <div class="field">
               <label for="tfInput">t<sub>f</sub> <span>(s)</span></label>
@@ -1017,7 +1048,7 @@
             </div>
             <div class="field">
               <label for="betaInput">β<sub>CK</sub> <span>(direct)</span></label>
-              <input id="betaInput" type="number" min="0" max="1" step="0.01" value="0.1933" />
+              <input id="betaInput" type="number" min="0" max="1" step="0.0001" value="0.0096" />
             </div>
           </div>
           <label class="check-row" for="wtToggle">
@@ -1051,6 +1082,11 @@
         <div class="readout-head">
           <h2>Current state</h2>
           <span class="pulse">live</span>
+        </div>
+
+        <div class="avg-line" id="tieLine">
+          <span>Liquidus tie-line at <strong id="tieTemp">648</strong> °C · k(T) = <strong id="tieK">0.173</strong></span>
+          <span>C<sub>L,eq</sub> / C<sub>S,eq</sub> = <strong id="tieCL">4.80</strong> / <strong id="tieCS">0.830</strong> <small>wt.%</small></span>
         </div>
 
         <div class="stats">
@@ -1176,7 +1212,7 @@
                 <th scope="col">Feature</th>
                 <th scope="col" class="eq-col">Equilibrium (lever)</th>
                 <th scope="col" class="scheil-col">Scheil–Gulliver</th>
-                <th scope="col" class="tiller-col">Tiller et al.</th>
+                <th scope="col" class="limited-col">No solid diffusion, limited liquid diffusion</th>
                 <th scope="col" class="ck-col">Clyne–Kurz</th>
               </tr>
             </thead>
@@ -1238,8 +1274,8 @@
   </div>
 
   <div class="footer">
-    <span>Interactive teaching model · equilibrium, Scheil–Gulliver, Tiller, Clyne–Kurz</span>
-    <span>Defaults: k = 0.30, C₀ = 1.0 wt.% (illustrative values)</span>
+    <span>Interactive teaching model · equilibrium, Scheil–Gulliver, limited liquid diffusion, Clyne–Kurz</span>
+    <span>Al–4.8 wt.% Cu · k = 0.173 · D<sub>L</sub> = 2.4×10⁻⁹ m²/s · D<sub>s</sub> = 4.8×10⁻¹⁵ m²/s</span>
   </div>
 </div>
 
@@ -1247,27 +1283,52 @@
 (() => {
   "use strict";
 
-  // ── State ──────────────────────────────────────────────────
+  // ── Alloy and state ────────────────────────────────────────
+  // Al–4.8 wt.% Cu reference properties. The liquidus and solidus fits
+  // pass through (0, 660.3), (4.8, 648), (33, 548) and
+  // (0, 660.3), (0.8304, 648), (5.65, 548) respectively.
+  const ALLOY = {
+    c0: 4.8,
+    kRef: 0.173,
+    Tref: 648,
+    Tm: 660.3,
+    Teut: 548,
+    dsRef: 4.8e-15,
+    dlRef: 2.4e-9,
+    Qs: 130e3,
+    Ql: 30e3,
+    R: 8.314462618,
+  };
+
   const state = {
     fs: 0.5,
-    k: 0.3,
-    c0: 1.0,
+    T: 648,
+    tempLinked: true,
+    k: ALLOY.kRef,
+    c0: ALLOY.c0,
     model: "equilibrium",
     view: "auto",
     v: 20,
-    dl: 1e-9,
-    ds: 1e-13,
+    dl: ALLOY.dlRef,
+    ds: ALLOY.dsRef,
     tf: 100,
     lambda2: 20e-6,
     alphaC: 0.1,
     wonThomas: false,
     betaDirect: false,
-    betaValue: 0.193253,
+    betaValue: 0.0096,
   };
 
   const els = {
     fsSlider: document.getElementById("fsSlider"),
     fsBadge: document.getElementById("fsBadge"),
+    tempSlider: document.getElementById("tempSlider"),
+    tempBadge: document.getElementById("tempBadge"),
+    tempLinkToggle: document.getElementById("tempLinkToggle"),
+    tieTemp: document.getElementById("tieTemp"),
+    tieK: document.getElementById("tieK"),
+    tieCL: document.getElementById("tieCL"),
+    tieCS: document.getElementById("tieCS"),
     kInput: document.getElementById("kInput"),
     c0Input: document.getElementById("c0Input"),
     csValue: document.getElementById("csValue"),
@@ -1280,8 +1341,8 @@
     liqAvgLine: document.getElementById("liqAvgLine"),
     velocityInput: document.getElementById("velocityInput"),
     dlInput: document.getElementById("dlInput"),
-    tillerHint: document.getElementById("tillerHint"),
-    tillerPanel: document.getElementById("tillerPanel"),
+    limitedHint: document.getElementById("limitedHint"),
+    limitedPanel: document.getElementById("limitedPanel"),
     ckPanel: document.getElementById("ckPanel"),
     dsInput: document.getElementById("dsInput"),
     tfInput: document.getElementById("tfInput"),
@@ -1312,6 +1373,81 @@
   const modelButtons = Array.from(document.querySelectorAll(".model-btn"));
   const viewButtons = Array.from(document.querySelectorAll(".view-btn"));
 
+  // ── Temperature–concentration coupling ─────────────────────
+  // The notes use the dilute liquidus relation T = T_m + m_L C_L with
+  // m_L < 0. We invert a quadratic fit to the Al–Cu liquidus and solidus
+  // so that a temperature fixes the equilibrium tie-line (C_L, C_S).
+  const LIQ_FIT = { a: -0.0298060391, b: -2.41943101, c: 660.3 };
+  const SOL_FIT = { a: -1.05070285, b: -13.93963508, c: 660.3 };
+
+  function fitRoot(fit, T) {
+    if (T >= fit.c) return 0;
+    const disc = fit.b * fit.b - 4 * fit.a * (fit.c - T);
+    if (!(disc >= 0)) return 0;
+    return (-fit.b - Math.sqrt(disc)) / (2 * fit.a);
+  }
+
+  // Equilibrium liquidus composition (wt.% Cu) at temperature T (°C).
+  function liquidusC(T) {
+    return Math.max(0, fitRoot(LIQ_FIT, T));
+  }
+
+  // Equilibrium solidus composition (wt.% Cu) at temperature T (°C).
+  function solidusC(T) {
+    return Math.max(0, fitRoot(SOL_FIT, T));
+  }
+
+  // k(T) from the phase-diagram ratio C_S/C_L. At T >= T_m there is no
+  // primary solid, so keep the reference value for the limiting curves.
+  function kAtT(T) {
+    const cl = liquidusC(T);
+    const cs = solidusC(T);
+    if (cl < 1e-8) return ALLOY.kRef;
+    return cs / cl;
+  }
+
+  const kelvin = (T) => T + 273.15;
+
+  // Arrhenius scaling anchored to the Al–4.8 wt.% Cu reference at 648 °C.
+  function dsAtT(T) {
+    return ALLOY.dsRef * Math.exp(
+      -(ALLOY.Qs / ALLOY.R) * (1 / kelvin(T) - 1 / kelvin(ALLOY.Tref))
+    );
+  }
+
+  function dlAtT(T) {
+    return ALLOY.dlRef * Math.exp(
+      -(ALLOY.Ql / ALLOY.R) * (1 / kelvin(T) - 1 / kelvin(ALLOY.Tref))
+    );
+  }
+
+  // Push the temperature-derived properties into the state and the fields.
+  function syncTemperature() {
+    if (state.tempLinked) {
+      state.k = kAtT(state.T);
+      state.ds = dsAtT(state.T);
+      state.dl = dlAtT(state.T);
+      els.kInput.value = state.k.toFixed(4);
+      els.dsInput.value = (state.ds / 1e-12).toPrecision(4);
+      els.dlInput.value = (state.dl / 1e-9).toPrecision(4);
+    }
+    els.kInput.disabled = state.tempLinked;
+    els.dsInput.disabled = state.tempLinked;
+    els.dlInput.disabled = state.tempLinked;
+
+    const clEq = liquidusC(state.T);
+    const csEq = solidusC(state.T);
+    const kT = kAtT(state.T);
+    const fullyLiquid = state.T >= ALLOY.Tm;
+    els.tieTemp.textContent = state.T.toFixed(1).replace(/\.0$/, "");
+    els.tieK.textContent = fullyLiquid ? "—" : kT.toFixed(4);
+    els.tieCL.textContent = fullyLiquid ? "0.00" : clEq.toFixed(2);
+    els.tieCS.textContent = fullyLiquid ? "0.00" : csEq.toFixed(3);
+    els.kInput.title = state.tempLinked
+      ? "Derived from the phase diagram at the slider temperature"
+      : "Manual value (temperature coupling is off)";
+  }
+
   // ── Model ──────────────────────────────────────────────────
   // Equilibrium (lever rule):
   //   CS = k*C0 / (1 - (1-k)*fs),  CL = C0 / (1 - (1-k)*fs)
@@ -1321,8 +1457,8 @@
     return state.model === "scheil";
   }
 
-  function isTiller() {
-    return state.model === "tiller";
+  function isLimitedLiquid() {
+    return state.model === "limited";
   }
 
   function isCK() {
@@ -1376,26 +1512,26 @@
     return (1 - (1 - fs) * cln) / fs;
   }
 
-  // ── Tiller et al. (diffusion-controlled planar growth) ─────
+  // ── No solid diffusion, limited liquid diffusion ──────────
   // The solid profile is integrated from local equilibrium and global solute
   // balance. This recovers the initial transient, the C_S = C0 plateau, and
   // the final transient spike, while keeping the liquid boundary layer
   // C_L(z) = C0 + (C_L* - C0) exp(-z/(delta/L)) mass-conserving.
-  const TILLER_L = 1e-3; // characteristic length L = 1 mm, in metres
-  let tillerCache = { key: "", data: null };
+  const CHAR_L = 1e-3; // characteristic length L = 1 mm, in metres
+  let limitedCache = { key: "", data: null };
 
-  // The Tiller equations use the dimensionless boundary-layer thickness
+  // This model uses the dimensionless boundary-layer thickness
   // delta/L = D_L/(v*L) directly, so no extra dimensionless input is needed.
-  function tillerDeltaNorm() {
+  function limitedDeltaNorm() {
     const v = Math.max(state.v * 1e-6, 1e-12); // um/s -> m/s
     const dl = Math.max(state.dl, 1e-15);
-    return (dl / (v * TILLER_L));
+    return (dl / (v * CHAR_L));
   }
 
-  function tillerData() {
-    const delta = tillerDeltaNorm();
+  function limitedData() {
+    const delta = limitedDeltaNorm();
     const key = `${state.k}|${delta}`;
-    if (tillerCache.key === key) return tillerCache.data;
+    if (limitedCache.key === key) return limitedCache.data;
 
     const N = 2200;
     const xmax = 0.9999;
@@ -1420,12 +1556,12 @@
     }
 
     const data = { N, xmax, dx, S, I };
-    tillerCache = { key, data };
+    limitedCache = { key, data };
     return data;
   }
 
-  function tillerAt(fs) {
-    const d = tillerData();
+  function limitedAt(fs) {
+    const d = limitedData();
     const x = Math.min(Math.max(fs, 0), d.xmax);
     const index = Math.min(d.N - 1, Math.floor(x / d.dx));
     const t = x / d.dx - index;
@@ -1435,40 +1571,40 @@
     };
   }
 
-  function tillerCSNorm(fs) {
+  function limitedCSNorm(fs) {
     if (fs >= 1 - 1e-12) return Infinity;
-    return tillerAt(fs).s;
+    return limitedAt(fs).s;
   }
 
-  function tillerCLNorm(fs) {
+  function limitedCLNorm(fs) {
     if (fs >= 1 - 1e-12) return Infinity;
-    return tillerAt(fs).s / state.k;
+    return limitedAt(fs).s / state.k;
   }
 
-  function tillerAvgNorm(fs) {
+  function limitedAvgNorm(fs) {
     if (fs < 1e-9) return state.k;
     if (fs >= 1 - 1e-12) return 1;
-    return tillerAt(fs).integral / fs;
+    return limitedAt(fs).integral / fs;
   }
 
-  function tillerCLAvgNorm(fs) {
+  function limitedCLAvgNorm(fs) {
     if (fs >= 1 - 1e-12) return Infinity;
     if (fs < 1e-9) return 1;
-    return (1 - tillerAt(fs).integral) / (1 - fs);
+    return (1 - limitedAt(fs).integral) / (1 - fs);
   }
 
-  function tillerSolidProfileNorm(x) {
-    const d = tillerData();
+  function limitedSolidProfileNorm(x) {
+    const d = limitedData();
     const xx = Math.min(Math.max(x, 0), d.xmax);
     const index = Math.min(d.N - 1, Math.floor(xx / d.dx));
     const t = xx / d.dx - index;
     return d.S[index] * (1 - t) + d.S[index + 1] * t;
   }
 
-  function tillerLiquidProfileNorm(z, fs) {
-    const clStar = tillerCLNorm(fs);
+  function limitedLiquidProfileNorm(z, fs) {
+    const clStar = limitedCLNorm(fs);
     if (!Number.isFinite(clStar)) return NaN;
-    return 1 + (clStar - 1) * Math.exp(-z / tillerDeltaNorm());
+    return 1 + (clStar - 1) * Math.exp(-z / limitedDeltaNorm());
   }
 
   // ── Model values ───────────────────────────────────────────
@@ -1476,8 +1612,8 @@
     if (isScheil()) {
       return state.k * state.c0 * Math.pow(1 - fs, state.k - 1);
     }
-    if (isTiller()) {
-      return state.c0 * tillerCSNorm(fs);
+    if (isLimitedLiquid()) {
+      return state.c0 * limitedCSNorm(fs);
     }
     if (isCK()) {
       return state.c0 * state.k * ckCLNorm(fs);
@@ -1489,8 +1625,8 @@
     if (isScheil()) {
       return state.c0 * Math.pow(1 - fs, state.k - 1);
     }
-    if (isTiller()) {
-      return state.c0 * tillerCLNorm(fs);
+    if (isLimitedLiquid()) {
+      return state.c0 * limitedCLNorm(fs);
     }
     if (isCK()) {
       return state.c0 * ckCLNorm(fs);
@@ -1505,8 +1641,8 @@
       if (fs < 1e-9) return state.k * state.c0;
       return state.c0 * (1 - Math.pow(1 - fs, state.k)) / fs;
     }
-    if (isTiller()) {
-      return state.c0 * tillerAvgNorm(fs);
+    if (isLimitedLiquid()) {
+      return state.c0 * limitedAvgNorm(fs);
     }
     if (isCK()) {
       return state.c0 * ckAvgNorm(fs);
@@ -1514,18 +1650,18 @@
     return cs(fs);
   }
 
-  // Mean liquid composition. Uniform for every model except Tiller.
+  // Mean liquid composition. Uniform except for limited liquid diffusion.
   function clAvg(fs) {
-    if (isTiller()) return state.c0 * tillerCLAvgNorm(fs);
+    if (isLimitedLiquid()) return state.c0 * limitedCLAvgNorm(fs);
     return cl(fs);
   }
 
   // Normalized y-axis limit for the plotted curves.
   function yMaxNorm() {
     const k = state.k;
-    if (isTiller()) {
+    if (isLimitedLiquid()) {
       const cap = 0.99;
-      const values = [1, k, tillerCSNorm(cap), tillerCLNorm(cap)]
+      const values = [1, k, limitedCSNorm(cap), limitedCLNorm(cap)]
         .filter(Number.isFinite);
       return Math.min(Math.max(...values) * 1.06, 25);
     }
@@ -1552,7 +1688,7 @@
     return Math.max(state.k, 1 / state.k) * 1.06;
   }
 
-  // Along-bar y-axis limit. It follows the current state so that the Tiller
+  // Along-bar y-axis limit. It follows the current state so that the limited-liquid
   // boundary layer stays readable when the interface is only part-way along.
   // In fixed-scale mode it uses the model-wide limit, so the axes and grid
   // stay identical while the f_s slider moves.
@@ -1573,8 +1709,8 @@
     if (isScheil()) {
       return state.k * Math.pow(1 - x, state.k - 1);
     }
-    if (isTiller()) {
-      return tillerSolidProfileNorm(x);
+    if (isLimitedLiquid()) {
+      return limitedSolidProfileNorm(x);
     }
     if (isCK()) {
       // Clyne–Kurz does not resolve a spatial solid profile. Show the
@@ -1660,9 +1796,9 @@
       fill: "#fbfdfd",
     }));
 
-    // Tiller stages: initial transient, steady growth, final transient.
-    if (isTiller()) {
-      const delta = tillerDeltaNorm();
+    // Stages: initial transient, steady growth, final transient.
+    if (isLimitedLiquid()) {
+      const delta = limitedDeltaNorm();
       const xInit = Math.min(0.45, delta / state.k);
       const xFinal = Math.max(0.55, 1 - delta);
       const bands = [
@@ -1699,6 +1835,31 @@
       });
       label.textContent = tick.toFixed(tick % 1 === 0 ? 0 : 2);
       plot.appendChild(label);
+    }
+
+    // Liquidus/solidus tie-line for the selected temperature. These move
+    // vertically as T changes and make the temperature-concentration link
+    // visible even when the model curves themselves shift only slightly.
+    if (state.T < ALLOY.Tm) {
+      const tieLines = [
+        [liquidusC(state.T) / state.c0, "C\u2097,eq", "#c2410c"],
+        [solidusC(state.T) / state.c0, "C\u209b,eq", "#0f766e"],
+      ];
+      for (const [value, label, color] of tieLines) {
+        if (!(value >= 0) || value > yMax) continue;
+        const y = yScale(value, yMax);
+        plot.appendChild(svgEl("line", {
+          x1: M.left, y1: y, x2: M.left + plotW, y2: y,
+          stroke: color, "stroke-width": 1.2, "stroke-dasharray": "5 5",
+          opacity: 0.55,
+        }));
+        const tag = svgEl("text", {
+          x: M.left + plotW - 6, y: Math.max(M.top + 12, y - 4),
+          "text-anchor": "end", class: "tick-text", fill: color,
+        });
+        tag.textContent = label;
+        plot.appendChild(tag);
+      }
     }
 
     // Vertical grid + x tick labels
@@ -1782,7 +1943,7 @@
     let cornerNote = "";
     if (isScheil() && state.k < 1) {
       cornerNote = "C \u2192 \u221E as f\u209B \u2192 1";
-    } else if (isTiller()) {
+    } else if (isLimitedLiquid()) {
       cornerNote = "final transient clipped";
     } else if (isCK() && betaCK(alphaEff()) < 1e-6 && state.k < 1) {
       cornerNote = "C \u2192 \u221E as f\u209B \u2192 1";
@@ -1886,11 +2047,11 @@
       ? (Number.isFinite(avgNorm) ? sy(avgNorm, yMax) : null)
       : ySolid;
 
-    // Liquid profile helper: Tiller has a decaying boundary layer, while the
+    // Liquid profile helper: limited liquid diffusion has a decaying boundary layer, while the
     // other models treat the liquid as uniform.
     const zMax = 1 - state.fs;
     const liquidAt = (z) => {
-      if (isTiller()) return tillerLiquidProfileNorm(z, state.fs);
+      if (isLimitedLiquid()) return limitedLiquidProfileNorm(z, state.fs);
       return clNorm;
     };
 
@@ -2035,7 +2196,7 @@
     }));
 
     // ── Composition profile ─────────────────────────────────
-    // Equilibrium: uniform solid. Scheil: cored solid. Tiller: the frozen
+    // Equilibrium: uniform solid. Scheil: cored solid. Limited liquid diffusion: the frozen
     // solid profile plus a decaying liquid boundary layer. Clyne–Kurz: the
     // back-diffused average solid composition (the model has no spatial
     // solid profile), with the interface composition marked separately.
@@ -2072,7 +2233,7 @@
         profileGroup.appendChild(svgEl("polyline", {
           points: liquidPoints.join(" "),
           class: "curve", stroke: "#c2410c", "stroke-width": 3,
-          "stroke-dasharray": isTiller() ? "none" : "7 6",
+          "stroke-dasharray": isLimitedLiquid() ? "none" : "7 6",
         }));
       }
     }
@@ -2116,9 +2277,9 @@
       }));
     }
 
-    // Boundary-layer thickness marker for Tiller.
-    if (isTiller() && state.fs < 0.999) {
-      const delta = tillerDeltaNorm();
+    // Boundary-layer thickness marker for limited liquid diffusion.
+    if (isLimitedLiquid() && state.fs < 0.999) {
+      const delta = limitedDeltaNorm();
       const zEnd = Math.min(delta, zMax);
       if (zEnd > 0.004) {
         const yBar = sAxisBottom - 12;
@@ -2160,7 +2321,7 @@
       });
       solidLabel.textContent = isCK()
         ? "C\u209B,avg"
-        : (isScheil() || isTiller()) ? "C\u209B(x)" : "C\u209B";
+        : (isScheil() || isLimitedLiquid()) ? "C\u209B(x)" : "C\u209B";
       plot.appendChild(solidLabel);
     }
     if ((1 - state.fs) * sPlotW > 34 && yLiquid !== null) {
@@ -2174,7 +2335,7 @@
         y: Math.max(sAxisTop + 13, yMidLiquid - 9),
         "text-anchor": "middle", class: "line-label", fill: "#c2410c",
       });
-      liquidLabel.textContent = isTiller() ? "C\u2097(z)" : "C\u2097";
+      liquidLabel.textContent = isLimitedLiquid() ? "C\u2097(z)" : "C\u2097";
       plot.appendChild(liquidLabel);
     }
   }
@@ -2186,13 +2347,13 @@
     if (state.model === lastModel) return;
     lastModel = state.model;
 
-    els.tillerPanel.hidden = !isTiller();
+    els.limitedPanel.hidden = !isLimitedLiquid();
     els.ckPanel.hidden = !isCK();
 
-    if (isTiller()) {
+    if (isLimitedLiquid()) {
       els.modelBlurb.textContent =
         "No solid diffusion and no liquid convection. Solute piles up in a thin boundary layer ahead of the interface.";
-      els.equationLabel.textContent = "Initial transient (Tiller et al.)";
+      els.equationLabel.textContent = "Initial transient (limited liquid diffusion)";
       els.formula.innerHTML =
         'C<sub>S</sub>(x) = C<sub>0</sub>[k + (1 \u2212 k)(1 \u2212 e<sup>\u2212k x/(\u03B4/L)</sup>)]';
       els.equationNote.innerHTML =
@@ -2200,7 +2361,7 @@
         '<em>C<sub>L</sub>(z) = C<sub>0</sub>[1 + (1 \u2212 k)/k \u00b7 e<sup>\u2212z/(\u03B4/L)</sup>]</em>, ' +
         'with <em>\u03B4/L = D<sub>L</sub>/(vL)</em>. Near f<sub>s</sub> = 1 the boundary layer reaches the mold wall and produces a final-transient spike.';
       els.graphSubtitle.innerHTML =
-        'Tiller et al.: initial transient \u2192 steady growth C<sub>S</sub> = C<sub>0</sub> \u2192 final transient';
+        'No solid diffusion, limited liquid diffusion: initial transient \u2192 steady growth C<sub>S</sub> = C<sub>0</sub> \u2192 final transient';
       els.spatialSubtitle.textContent =
         "Solid profile C_S(x); liquid boundary layer C_L(z) ahead of the interface";
       els.csLabel.innerHTML = 'Solid (interface), C<sub>S</sub>*';
@@ -2330,9 +2491,9 @@
   }
 
   function updateParamHints() {
-    const delta = tillerDeltaNorm();
+    const delta = limitedDeltaNorm();
     const initLength = delta / state.k;
-    els.tillerHint.innerHTML =
+    els.limitedHint.innerHTML =
       `\u03B4/L = D<sub>L</sub>/(vL) = <strong>${delta.toFixed(3)}</strong> \u00b7 ` +
       `initial transient scale (\u03B4/L)/k = <strong>${initLength.toFixed(3)}</strong>. ` +
       'Keep \u03B4/L below about 1 for a thin boundary layer.';
@@ -2358,6 +2519,7 @@
   function update() {
     const { fs } = state;
 
+    syncTemperature();
     syncModelUI();
     updateParamHints();
 
@@ -2366,6 +2528,11 @@
     els.fsBadge.textContent = fs.toFixed(3);
     els.fsSlider.setAttribute("aria-valuetext", fs.toFixed(3));
 
+    const tempPct = ((state.T - 548) / (700 - 548)) * 100;
+    els.tempSlider.style.setProperty("--pct", `${Math.min(100, Math.max(0, tempPct))}%`);
+    els.tempBadge.textContent = `${state.T.toFixed(1).replace(/\.0$/, "")} °C`;
+    els.tempSlider.setAttribute("aria-valuetext", `${state.T.toFixed(1)} degrees Celsius`);
+
     // Numbers
     const csNow = cs(fs);
     const clNow = cl(fs);
@@ -2373,7 +2540,7 @@
     const clAvgNow = clAvg(fs);
     const singular = fs > 0.999999 && (
       (isScheil() && state.k < 1) ||
-      isTiller() ||
+      isLimitedLiquid() ||
       (isCK() && betaCK(alphaEff()) < 1e-9 && state.k < 1)
     );
 
@@ -2409,6 +2576,22 @@
   // ── Events ─────────────────────────────────────────────────
   els.fsSlider.addEventListener("input", (event) => {
     setState({ fs: Number(event.target.value) });
+  });
+
+  els.tempSlider.addEventListener("input", (event) => {
+    setState({ T: Number(event.target.value) });
+  });
+
+  els.tempLinkToggle.addEventListener("change", (event) => {
+    const linked = event.target.checked;
+    const patch = { tempLinked: linked };
+    // Re-anchor to the current temperature when coupling is re-enabled.
+    if (linked) {
+      patch.k = kAtT(state.T);
+      patch.ds = dsAtT(state.T);
+      patch.dl = dlAtT(state.T);
+    }
+    setState(patch);
   });
 
   modelButtons.forEach((button) => {
@@ -2447,8 +2630,8 @@
   els.kInput.addEventListener("blur", (event) => {
     const value = Number(event.target.value);
     if (!Number.isFinite(value) || value <= 0) {
-      event.target.value = "0.30";
-      setState({ k: 0.3 });
+      event.target.value = "0.173";
+      setState({ k: ALLOY.kRef });
     } else if (value > 100) {
       event.target.value = "100";
       setState({ k: 100 });
@@ -2465,8 +2648,8 @@
   els.c0Input.addEventListener("blur", (event) => {
     const value = Number(event.target.value);
     if (!Number.isFinite(value) || value <= 0) {
-      event.target.value = "1.0";
-      setState({ c0: 1.0 });
+      event.target.value = "4.8";
+      setState({ c0: ALLOY.c0 });
     } else if (value > 100) {
       event.target.value = "100";
       setState({ c0: 100 });
@@ -2501,8 +2684,8 @@
   els.dlInput.addEventListener("blur", (event) => {
     const value = Number(event.target.value);
     if (!Number.isFinite(value) || value <= 0) {
-      event.target.value = "1.0";
-      setState({ dl: 1e-9 });
+      event.target.value = "2.4";
+      setState({ dl: ALLOY.dlRef });
     } else if (value > 1000) {
       event.target.value = "1000";
       setState({ dl: 1e-6 });

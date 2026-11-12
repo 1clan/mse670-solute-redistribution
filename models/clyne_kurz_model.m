@@ -51,10 +51,10 @@ function out = clyne_kurz_model(k, c0, Ds, tf, lambda2, fs, alphaC, useWT, betaO
 %       out.CsAvg      average solid composition
 %       out.ClAvg      average liquid composition (= Cl; liquid is mixed)
 %
-%   Example
-%       out = clyne_kurz_model(0.3, 1.0, 1e-13, 100, 20e-6, 0.9)
-%       % alpha = 0.1, beta = 0.1933, Cl/c0 = 4.051
-%       out = clyne_kurz_model(0.3, 1.0, 1e-13, 100, 20e-6, 0.9, 0, false, 0.5)
+%   Example (Al-4.8 wt.% Cu at 648 C)
+%       out = clyne_kurz_model(0.173, 4.8, 4.8e-15, 100, 20e-6, 0.9)
+%       % alpha = 0.0048, beta = 0.0096
+%       out = clyne_kurz_model(0.173, 4.8, 4.8e-15, 100, 20e-6, 0.9, 0, false, 0.5)
 %       % beta = 0.5 treated as an independent sensitivity variable
 
 if nargin < 7 || isempty(alphaC)

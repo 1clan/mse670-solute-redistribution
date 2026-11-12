@@ -1,11 +1,13 @@
 # Solute Redistribution Slider
 
-An interactive graph for **solute redistribution during solidification**, based on the MSE 670 solidification notes. It compares four models that bracket the behaviour seen in real castings:
+An interactive graph for **solute redistribution during solidification**, based on the MSE 670 solidification notes. It compares four models that bracket the behaviour seen in real castings, all applied to the same **Al–4.8 wt.% Cu** alloy:
 
 - **Equilibrium (lever rule)** — complete diffusion in both phases.
 - **Scheil–Gulliver** — no diffusion in the solid, perfect mixing in the liquid.
-- **Tiller et al.** — diffusion-controlled planar growth: no solid diffusion, no convective mixing in the liquid, and a solute boundary layer ahead of the interface.
+- **No solid diffusion, limited liquid diffusion** — diffusion-controlled planar growth: no solid diffusion, no convective mixing in the liquid, and a solute boundary layer ahead of the interface.
 - **Clyne–Kurz** — finite solid back diffusion with a fully mixed liquid, plus an optional Won–Thomas coarsening correction.
+
+The alloy is described by `C₀ = 4.8 wt.% Cu`, `k = 0.173`, `D_L = 2.4×10⁻⁹ m²/s`, `D_S = 4.8×10⁻¹⁵ m²/s`, liquidus `T_L = 648 °C`, and solidus/eutectic `T_S = 548 °C`. A **temperature slider** changes the liquidus tie-line and rescales `k`, `D_S`, and `D_L` through the phase diagram and Arrhenius fits.
 
 It comes in two versions that stay in sync:
 
@@ -19,7 +21,8 @@ It comes in two versions that stay in sync:
 Move the **solid fraction `f_s`** slider from 0 to 1 and watch:
 
 - the solid composition `C_S` (solid line),
-- the liquid composition `C_L` (dashed line, or the boundary-layer profile for Tiller),
+- the liquid composition `C_L` (dashed line, or the boundary-layer profile for limited liquid diffusion),
+- the **liquidus tie-line** `C_L,eq(T)` / `C_S,eq(T)`, drawn as horizontal dashed references,
 - the **composition along the bar**, aligned with the solidified/liquid segments,
 - the **solid–liquid connector** at the interface (green to orange),
 - the mass-balance check `f_s C_S,avg + (1 − f_s) C_L,avg = C_0`.
@@ -28,7 +31,7 @@ Use the **Graph view** switch to choose between `Auto zoom` (the along-bar chart
 
 ## Models
 
-Pick a model with the 2×2 buttons above the controls. `k` can be any positive number — it is **not** limited to `0 < k ≤ 1`.
+Pick a model with the 2×2 buttons above the controls. `k` can be any positive number — it is **not** limited to `0 < k ≤ 1`. By default, `k`, `D_S`, and `D_L` are derived from the temperature slider; untick **Derive k, Ds and DL from T** to treat them as independent sensitivity variables.
 
 ### Equilibrium (lever rule)
 
@@ -60,7 +63,7 @@ C_S,avg = C_0 [1 − (1 − f_s)^k] / f_s
 
 with `C_S,avg → k C_0` as `f_s → 0`.
 
-### Tiller et al. (diffusion-controlled planar growth)
+### No solid diffusion, limited liquid diffusion
 
 This is the Tiller–Jackson–Rutter–Chalmers case: `D_S = 0`, and the liquid is not convectively mixed. Solute rejected by the growing solid can only spread by **diffusion in the liquid**, so a boundary layer builds up ahead of the interface.
 
@@ -135,80 +138,67 @@ and then recomputing `β_CK` with `α⁺`. The factor of two extends the result 
 
 ### How temperature enters
 
-The four models above are **isothermal at the interface**: `k`, `D_s`, `D_L`, and `t_f` are held constant. Temperature is not an independent variable in those equations, so changing `T` only makes sense if it changes one or more of those properties or the liquidus relation.
+The notes use the dilute liquidus relation
 
-The usual route is:
+```
+T = T_m + m_L C_L        (m_L < 0)
+```
 
-1. **Temperature-dependent diffusivities.** Use an Arrhenius law for solid and liquid diffusion:
+so a temperature fixes the equilibrium liquid composition `C_L,eq(T)`. The app inverts quadratic fits to the Al–Cu liquidus and solidus that pass through
 
-   ```
-   D_s(T) = D_s,0 exp(−Q_s / RT)
-   D_L(T) = D_L,0 exp(−Q_L / RT)
-   ```
+```
+(0, 660.3), (4.8, 648), (33, 548)                  liquidus
+(0, 660.3), (0.8304, 648), (5.65, 548)             solidus
+```
 
-   Then `α = 4D_s(T)t_f/λ₂²`, `β_CK` changes with `T`, and the Tiller boundary layer `δ/L = D_L(T)/(vL)` also changes with `T`.
+The fits are
 
-2. **Temperature-dependent partition coefficient.** Either use a measured `k(T)` or an Arrhenius-type approximation:
+```
+T_L(C) = 660.3 − 2.41943101 C − 0.0298060391 C²
+T_S(C) = 660.3 − 13.93963508 C − 1.05070285 C²
+```
 
-   ```
-   k(T) = k_ref exp[−(Q_k/R)(1/T − 1/T_ref)]
-   ```
+Inverting them gives the tie-line `C_L,eq(T)`, `C_S,eq(T)` shown in the readout and as horizontal dashed lines on the chart. The partition coefficient then follows directly from the phase diagram:
 
-   A real alloy would use the solidus and liquidus compositions from the phase diagram, `k = C_S/C_L`, at the local interface temperature.
+```
+k(T) = C_S,eq(T) / C_L,eq(T)
+```
 
-3. **Liquidus coupling.** For a dilute binary alloy the local liquidus is
+which gives `k = 0.173` at `T = 648 °C` and varies only weakly across the freezing range (`k ≈ 0.171` near the eutectic).
 
-   ```
-   T = T_m + m_L C_L        (m_L < 0)
-   ```
+The diffusivities are scaled with Arrhenius laws anchored to the Al–4.8 wt.% Cu reference values at `T_ref = 648 °C`:
 
-   so the liquid composition is fixed by temperature:
+```
+D_S(T) = D_S,ref exp[−(Q_S/R)(1/T − 1/T_ref)]
+D_L(T) = D_L,ref exp[−(Q_L/R)(1/T − 1/T_ref)]
+```
 
-   ```
-   C_L = (T − T_m) / m_L
-   ```
+with `D_S,ref = 4.8×10⁻¹⁵ m²/s`, `D_L,ref = 2.4×10⁻⁹ m²/s`, `Q_S = 130 kJ/mol`, and `Q_L = 30 kJ/mol`. These changes propagate into the models:
 
-   Substituting the model's `C_L(f_s)` lets you solve for `f_s(T)`. For example, Scheil gives
+```
+α(T) = 4 D_S(T) t_f / λ₂²,      β_CK(T)
+δ/L = D_L(T) / (v L)
+```
 
-   ```
-   f_s(T) = 1 − [(T − T_m)/(m_L C_0)]^(1/(k−1))
-   ```
+The slider range is `548–700 °C`, default `648 °C`. Above `T_m = 660.3 °C` the alloy is fully liquid; the tie-line readout says so and the model curves are retained for reference. A direct `k`, `D_S`, or `D_L` override is still available by unticking **Derive k, Ds and DL from T**.
 
-   and the equilibrium model gives
+The local solidification time can be tied to the cooling rate through
 
-   ```
-   f_s(T) = [1 − C_0 m_L/(T − T_m)]/(1 − k)
-   ```
+```
+t_f ≈ (T_L − T_S)/CR
+```
 
-   Clyne–Kurz can be inverted in the same way. Tiller has no closed-form `C_L(f_s)`, so it must be solved numerically.
-
-4. **Cooling history.** The local solidification time is set by the cooling rate:
-
-   ```
-   t_f ≈ (T_liq − T_sol)/CR
-   ```
-
-   A slower cooling rate increases `t_f`, which increases `α` and `β_CK` and therefore allows more back diffusion.
-
-5. **Directional solidification.** With a thermal gradient `G` and interface velocity `v`, the temperature along the bar is approximately
-
-   ```
-   T(x) = T_0 + G x
-   ```
-
-   Combining this with the concentration profile gives the local `f_s(x,T)` and is also the starting point for constitutional-undercooling checks.
-
-The current app keeps `T` fixed and exposes the resulting constants (`k`, `D_s`, `t_f`, `v`, `D_L`, `β`). A fully temperature-driven version would make `k` and the diffusivities functions of `T` and solve the liquidus relation above.
+which gives `t_f ≈ 100 s` for `CR = 1 °C/s` and the Al–Cu freezing range. `t_f` remains an input so that cooling-rate sensitivity can be explored independently.
 
 ## Model comparison
 
-| Feature | Equilibrium | Scheil–Gulliver | Tiller et al. | Clyne–Kurz |
+| Feature | Equilibrium | Scheil–Gulliver | No solid diffusion, limited liquid diffusion | Clyne–Kurz |
 |---|---|---|---|---|
 | Solid diffusion `D_S` | Infinite | Zero | Zero | Finite; back diffusion included |
 | Liquid mixing `D_L` | Infinite | Infinite | Diffusion only; no convection | Infinite; liquid homogenized |
 | Solid composition | Uniform at `C_0` | Continuously varying (cored) | Initial transient → `C_0` plateau → final spike | Varies; segregation reduced by back diffusion |
 | Liquid composition | Uniform | Uniform | Boundary layer `C_L(z)` | Uniform |
-| Key parameters | `k` | `k` | `v`, `D_L`; `δ/L = D_L/(vL)` | `α = 4D_s t_f/λ₂²`, `β_CK` |
+| Key parameters | `k(T)` | `k(T)` | `v`, `D_L(T)`; `δ/L = D_L/(vL)` | `α(T) = 4D_s(T)t_f/λ₂²`, `β_CK(T)` |
 | Limiting cases | Complete diffusion in both phases | `β = 0` | `δ/L → 0`; very thin layer | `β → 0` gives Scheil; `β → 1` gives lever rule |
 | Interface stability | Planar | Planar (assumed) | Prone to constitutional supercooling | Planar / local equilibrium assumed |
 
@@ -219,9 +209,9 @@ The current app keeps `T` fixed and exposes the resulting constants (`k`, `D_s`,
 No installation or build step is needed.
 
 1. Open `index.html` in any modern browser (double-click it, or drag it into a browser window).
-2. Pick **Equilibrium**, **Scheil–Gulliver**, **Tiller et al.**, or **Clyne–Kurz**.
-3. Move the `f_s` slider.
-4. Optionally change `k`, `C_0`, and the model parameters.
+2. Pick **Equilibrium**, **Scheil–Gulliver**, **No solid diffusion, limited liquid diffusion**, or **Clyne–Kurz**.
+3. Move the `T` slider to follow the liquidus tie-line, and the `f_s` slider to follow freezing.
+4. Optionally change `C_0`, `v`, `t_f`, `λ₂`, or untick the temperature coupling to set `k`, `D_S`, and `D_L` manually.
 
 If your browser restricts local files for any reason, serve the folder instead:
 
@@ -249,36 +239,38 @@ The `models/` folder contains the same equations as reusable functions, independ
 ```matlab
 addpath('models');
 
-[Cs, Cl, CsAvg] = equilibrium_model(0.3, 1.0, 0.5);
-[Cs, Cl, CsAvg] = scheil_model(0.3, 1.0, 0.5);
+[Cs, Cl, CsAvg] = equilibrium_model(0.173, 4.8, 0.5);
+[Cs, Cl, CsAvg] = scheil_model(0.173, 4.8, 0.5);
 
-outT = tiller_model(0.3, 1.0, 20e-6, 1e-9, 0.5);  % k, C0, v [m/s], D_L [m²/s], fs
-outK = clyne_kurz_model(0.3, 1.0, 1e-13, 100, 20e-6, 0.9);
-outB = clyne_kurz_model(0.3, 1.0, 1e-13, 100, 20e-6, 0.9, 0, false, 0.5);  % direct beta
-outW = won_thomas_model(0.3, 1.0, 1e-13, 100, 20e-6, 0.9, 0.1);
+outL = limited_liquid_model(0.173, 4.8, 20e-6, 2.4e-9, 0.5);  % k, C0, v [m/s], D_L [m²/s], fs
+outK = clyne_kurz_model(0.173, 4.8, 4.8e-15, 100, 20e-6, 0.9);
+outB = clyne_kurz_model(0.173, 4.8, 4.8e-15, 100, 20e-6, 0.9, 0, false, 0.5);  % direct beta
+outW = won_thomas_model(0.173, 4.8, 4.8e-15, 100, 20e-6, 0.9, 0.1);
 ```
 
-`clyne_kurz_model` and `won_thomas_model` return a struct with `alpha`, `beta`, `Cl`, `CsStar`, `CsAvg`, and `ClAvg`. `clyne_kurz_model` also accepts a ninth argument that sets `beta` directly (0–1) and reports `betaDirect = true`; `won_thomas_model` returns the coarsening-corrected `alphaEff`. `tiller_model` returns the solid profile `x`, `csProfile`, the interface values, the liquid boundary layer `z`, `ClProfile`, and `delta`.
+`clyne_kurz_model` and `won_thomas_model` return a struct with `alpha`, `beta`, `Cl`, `CsStar`, `CsAvg`, and `ClAvg`. `clyne_kurz_model` also accepts a ninth argument that sets `beta` directly (0–1) and reports `betaDirect = true`; `won_thomas_model` returns the coarsening-corrected `alphaEff`. `limited_liquid_model` returns the solid profile `x`, `csProfile`, the interface values, the liquid boundary layer `z`, `ClProfile`, and `delta`.
 
 ## Controls
 
 | Control | Meaning |
 |---|---|
-| Model | Equilibrium, Scheil–Gulliver, Tiller et al., or Clyne–Kurz. |
+| Model | Equilibrium, Scheil–Gulliver, No solid diffusion/limited liquid diffusion, or Clyne–Kurz. |
 | Graph view | `Auto zoom` rescales the along-bar chart as `f_s` changes; `Fixed scale` locks the axes, grid, and background so only the plotted data moves with the slider. |
+| `T` slider | Interface temperature from 548 to 700 °C; default 648 °C. Sets the liquidus tie-line and, when coupled, `k(T)`, `D_S(T)`, and `D_L(T)`. |
 | `f_s` slider | Solid fraction, from 0 (all liquid) to 1 (all solid). |
-| `k` | Partition coefficient, `k = C_S*/C_L*`. Any value `0.01 ≤ k ≤ 100`; not restricted to `k ≤ 1`. Default 0.30 (illustrative). |
-| `C_0` | Nominal solute concentration in wt.%. Default 1.0 wt.% (illustrative). |
-| `v` | Tiller interface growth velocity, entered in µm/s. With `L = 1 mm`, the default `v = 20 µm/s` and `D_L = 1×10⁻⁹ m²/s` give `δ/L = 0.05`. |
-| `D_L` | Tiller liquid diffusivity, entered in units of `10⁻⁹ m²/s`. Default `1.0` (i.e. `1×10⁻⁹ m²/s`). |
-| `D_s` | Clyne–Kurz solid diffusivity, entered in units of `10⁻¹² m²/s`; default `0.1` (i.e. `1×10⁻¹³ m²/s`). |
-| `t_f` | Local solidification time in seconds; default 100 s. |
+| `k` | Partition coefficient, `k = C_S*/C_L*`. Derived from the phase diagram as `C_S,eq(T)/C_L,eq(T)` when temperature coupling is on; `k ≈ 0.173` at 648 °C. Can be entered manually (0.01–100) when coupling is off. |
+| `C_0` | Nominal solute concentration in wt.%. Default 4.8 wt.% (Al–4.8 wt.% Cu). |
+| `v` | Interface growth velocity, entered in µm/s. With `L = 1 mm`, the default `v = 20 µm/s` and `D_L = 2.4×10⁻⁹ m²/s` give `δ/L = 0.12`. |
+| `D_L` | Liquid diffusivity, entered in units of `10⁻⁹ m²/s`; default `2.4` (i.e. `2.4×10⁻⁹ m²/s` at 648 °C). |
+| `D_s` | Solid diffusivity, entered in units of `10⁻¹² m²/s`; default `0.0048` (i.e. `4.8×10⁻¹⁵ m²/s` at 648 °C). |
+| `t_f` | Local solidification time in seconds; default 100 s, corresponding to `(T_L − T_S)/CR` at `CR = 1 °C/s`. |
 | `λ₂` | Secondary dendrite arm spacing in µm; default 20 µm. |
 | `α_C` | Won–Thomas coarsening constant; default 0.10. |
+| Derive k, Ds and DL from T | Temperature coupling (default on). Untick it to enter `k`, `D_S`, and `D_L` manually. |
 | Won–Thomas | Replaces `α` by `α⁺ = 2(α + α_C)` before computing `β_CK`. |
 | Direct β | Overrides the `α`-derived `β_CK` with the entered value (0–1). Use this to treat `β` as a sensitivity variable; it bypasses `α` and Won–Thomas. |
 
-With the defaults above, `α = 0.10` and `β_CK ≈ 0.1933`. Enabling Won–Thomas gives `α⁺ = 0.40` and `β_CK ≈ 0.4478`.
+With the Al–Cu defaults, `α = 4(4.8×10⁻¹⁵)(100)/(20×10⁻⁶)² = 0.0048` and `β_CK ≈ 0.0096`. Enabling Won–Thomas gives `α⁺ = 0.2096` and `β_CK ≈ 0.3236`.
 
 ## Where the equations come from
 
@@ -321,7 +313,7 @@ C_L = C_0 (1 − f_s)^(k − 1)
 
 and `C_S = k C_L` gives the solid equation. Integrating the deposited solid (`∫ C_S df_s`) and dividing by `f_s` gives `C_S,avg`.
 
-### Tiller et al.
+### No solid diffusion, limited liquid diffusion
 
 At steady state the solute rejected at the interface balances diffusion down the boundary layer. With a fixed frame moving at velocity `v`, the liquid diffusion equation becomes
 
@@ -352,7 +344,7 @@ Clyne and Kurz chose `β_CK(α)` so that the result is bounded between the Schei
 - **Composition vs. solid fraction** — `C_S/C_0` and `C_L/C_0` over the whole freezing range.
 - **Composition along the bar** — a horizontal bar shows the solidified (teal) and liquid (amber) segments, and the profile below it shows the concentration at each position `x/L`. The interface is at `x/L = f_s`, and the green solid dot is joined to the orange liquid dot by a connector.
 
-For **equilibrium**, each phase is uniform, so the along-bar profile is a sharp step at the interface. For **Scheil–Gulliver**, the solid is cored and follows `C_S(x) = k C_0 (1 − x)^(k−1)`; the remaining liquid is uniform. For **Tiller et al.**, the solid follows the integrated transient/plateau/spike profile and the liquid shows the decaying boundary layer, with a marker for `δ/L`. For **Clyne–Kurz**, the solid line is the back-diffused average composition (the model has no resolved spatial solid profile), and the interface composition `C_S*` is marked separately.
+For **equilibrium**, each phase is uniform, so the along-bar profile is a sharp step at the interface. For **Scheil–Gulliver**, the solid is cored and follows `C_S(x) = k C_0 (1 − x)^(k−1)`; the remaining liquid is uniform. For **No solid diffusion, limited liquid diffusion**, the solid follows the integrated transient/plateau/spike profile and the liquid shows the decaying boundary layer, with a marker for `δ/L`. For **Clyne–Kurz**, the solid line is the back-diffused average composition (the model has no resolved spatial solid profile), and the interface composition `C_S*` is marked separately.
 
 ## Assumptions and limitations
 
@@ -372,7 +364,7 @@ For **equilibrium**, each phase is uniform, so the along-bar profile is a sharp 
 - Constant `k`.
 - Closed system.
 
-### Tiller et al.
+### No solid diffusion, limited liquid diffusion
 
 - **No diffusion in the solid:** `D_S = 0`.
 - **No convective mixing in the liquid:** transport is by liquid diffusion only, with `D_L` finite.
@@ -389,9 +381,16 @@ For **equilibrium**, each phase is uniform, so the along-bar profile is a sharp 
 - The model is an analytical approximation; it does not resolve the spatial solid profile.
 - The Won–Thomas option is an approximate coarsening correction. The empirical arm-spacing fits in the original paper are specific to the steels and cooling conditions studied there and should not be transferred automatically to other alloys.
 
+### Temperature coupling
+
+- The liquidus and solidus fits are quadratic approximations to the Al–Cu phase diagram through three published points. They are not a full thermodynamic assessment.
+- `k(T) = C_S,eq/C_L,eq` assumes local equilibrium at the interface and a single primary α-Al solid phase. The terminal eutectic is not modelled; the equations should not be extrapolated through `f_s = 1`.
+- The Arrhenius activation energies (`Q_S = 130 kJ/mol`, `Q_L = 30 kJ/mol`) are teaching estimates. Real diffusivities also depend on composition and crystal orientation.
+- Above `T_m = 660.3 °C` the alloy is fully liquid, so `k` has no physical meaning and the app retains the reference value for the limiting curves.
+
 ### Endpoints
 
-| `f_s` | Equilibrium | Scheil–Gulliver | Tiller et al. | Clyne–Kurz |
+| `f_s` | Equilibrium | Scheil–Gulliver | No solid diffusion, limited liquid diffusion | Clyne–Kurz |
 |---|---|---|---|---|
 | 0 | `C_S = kC_0`, `C_L = C_0` | `C_S = kC_0`, `C_L = C_0` | `C_S* = kC_0`, `C_L* = C_0` | `C_S* = kC_0`, `C_L = C_0` |
 | 1 | `C_S = C_0`, `C_L = C_0/k` | `k < 1`: singular; `k > 1`: both → 0; `C_S,avg = C_0` | singular in the ideal no-mixing limit; `C_S,avg = C_0` | finite for `β > 0`; `C_S,avg = C_0`; `β = 0, k < 1` recovers the Scheil singularity |
@@ -407,7 +406,7 @@ fs_slider_project/
 ├── models/
 │   ├── equilibrium_model.m    # lever rule
 │   ├── scheil_model.m         # Scheil–Gulliver
-│   ├── tiller_model.m         # diffusion-controlled planar growth
+│   ├── limited_liquid_model.m # no solid diffusion, limited liquid diffusion
 │   ├── clyne_kurz_model.m     # back-diffusion model
 │   └── won_thomas_model.m     # coarsening-corrected Clyne–Kurz
 ├── preview.png                # screenshot used in this README
@@ -418,6 +417,6 @@ fs_slider_project/
 
 ## Notes source
 
-The models follow the equilibrium / lever-rule and Scheil–Gulliver sections of the handwritten notes (`Notes_261030_120238.pdf`, pages 1–3), the diffusion-controlled boundary-layer case in the three-case notes, and the derivations in `solute_redistribution_detailed_notes.pdf` (Chapters 5, 8, and 9, including the Won–Thomas discussion).
+The models follow the equilibrium / lever-rule and Scheil–Gulliver sections of the handwritten notes (`Notes_261030_120238.pdf`, pages 1–3), the no-solid-diffusion / limited-liquid-diffusion boundary-layer case and the `T = T_m + m_L C_L` liquidus discussion in the three-case notes, and the derivations in `solute_redistribution_detailed_notes.pdf` (Chapters 5, 8, and 9, including the Won–Thomas discussion). The Al–4.8 wt.% Cu parameter set follows the published values used for the project.
 
-Default values (`k = 0.30`, `C_0 = 1.0 wt.%`, `v = 20 µm/s`, `D_L = 1×10⁻⁹ m²/s`, `D_s = 1×10⁻¹³ m²/s`, `t_f = 100 s`, `λ₂ = 20 µm`, `α_C = 0.10`) are for demonstration only; they are not measured properties of a named alloy.
+The defaults are the published Al–4.8 wt.% Cu parameter set (`C_0 = 4.8 wt.%`, `k = 0.173`, `D_L = 2.4×10⁻⁹ m²/s`, `D_S = 4.8×10⁻¹⁵ m²/s`, `T_L = 648 °C`, `T_S = 548 °C`) together with `v = 20 µm/s`, `t_f = 100 s`, `λ₂ = 20 µm`, and `α_C = 0.10`. The diffusivities and `k` are temperature-dependent model inputs, not universal constants; the Arrhenius activation energies and the quadratic phase-diagram fits are teaching approximations to the Al–Cu system.

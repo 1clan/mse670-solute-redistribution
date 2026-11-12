@@ -20,8 +20,8 @@ function [Cs, Cl, CsAvg, ClAvg] = equilibrium_model(k, c0, fs)
 %       CsAvg   average solid composition (= Cs for equilibrium)
 %       ClAvg   average liquid composition (= Cl for equilibrium)
 %
-%   Example
-%       [Cs, Cl] = equilibrium_model(0.3, 1.0, 0.5)   % Cs = 0.4615, Cl = 1.5385
+%   Example (Al-4.8 wt.% Cu)
+%       [Cs, Cl] = equilibrium_model(0.173, 4.8, 0.5)   % Cs = 1.416, Cl = 8.184
 
 den = 1 - (1 - k).*fs;
 Cs = (k .* c0) ./ den;

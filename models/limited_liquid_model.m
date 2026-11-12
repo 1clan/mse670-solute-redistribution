@@ -1,8 +1,8 @@
-function out = tiller_model(k, c0, v, DL, fs, N, L)
-%TILLER_MODEL  Diffusion-controlled planar solidification (Tiller et al.).
+function out = limited_liquid_model(k, c0, v, DL, fs, N, L)
+%LIMITED_LIQUID_MODEL  No solid diffusion, limited liquid diffusion.
 %
-%   out = tiller_model(k, c0, v, DL, fs)
-%   out = tiller_model(k, c0, v, DL, fs, N, L)
+%   out = limited_liquid_model(k, c0, v, DL, fs)
+%   out = limited_liquid_model(k, c0, v, DL, fs, N, L)
 %
 %   No solid diffusion (D_S = 0) and no liquid mixing (D_L finite). Solute
 %   rejected by the growing solid can only spread by diffusion in the liquid,
@@ -51,10 +51,9 @@ function out = tiller_model(k, c0, v, DL, fs, N, L)
 %   The interface values are singular in the ideal no-mixing limit as
 %   fs -> 1. The function returns Inf there rather than a finite artefact.
 %
-%   Example
-%       out = tiller_model(0.3, 1.0, 20e-6, 1e-9, 0.5);
-%       % default L = 1 mm; delta/L = 0.05
-%       % interface solid ~0.965, interface liquid ~3.217
+%   Example (Al-4.8 wt.% Cu at 648 C)
+%       out = limited_liquid_model(0.173, 4.8, 20e-6, 2.4e-9, 0.5);
+%       % default L = 1 mm; delta/L = 0.12
 
 if nargin < 5 || isempty(fs)
     fs = 0.5;
@@ -66,13 +65,13 @@ if nargin < 7 || isempty(L)
     L = 1e-3;
 end
 if v <= 0
-    error('tiller_model:v','v must be positive.');
+    error('limited_liquid_model:v','v must be positive.');
 end
 if DL <= 0
-    error('tiller_model:DL','DL must be positive.');
+    error('limited_liquid_model:DL','DL must be positive.');
 end
 if L <= 0
-    error('tiller_model:L','L must be positive.');
+    error('limited_liquid_model:L','L must be positive.');
 end
 
 delta = DL/(v*L);

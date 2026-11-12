@@ -38,9 +38,9 @@ function out = won_thomas_model(k, c0, Ds, tf, lambda2, fs, alphaC)
 %       out.CsAvg      average solid composition
 %       out.ClAvg      average liquid composition
 %
-%   Example
-%       out = won_thomas_model(0.3, 1.0, 1e-13, 100, 20e-6, 0.9)
-%       % alphaWT = 0.4, beta = 0.4478, Cl/c0 = 3.391
+%   Example (Al-4.8 wt.% Cu at 648 C)
+%       out = won_thomas_model(0.173, 4.8, 4.8e-15, 100, 20e-6, 0.9)
+%       % alphaWT = 0.2096, beta = 0.3236
 
 if nargin < 7 || isempty(alphaC)
     alphaC = 0.1;

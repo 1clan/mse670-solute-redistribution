@@ -13,7 +13,7 @@ function fs_slider
 %       CS = k*C0 * (1 - fs)^(k-1)
 %       CL =    C0 * (1 - fs)^(k-1)
 %
-%   Tiller et al. (diffusion-controlled planar growth), no solid diffusion
+%   No solid diffusion, limited liquid diffusion (diffusion-controlled planar growth)
 %   and no liquid mixing. A boundary layer builds up ahead of the interface:
 %       CS(x) = C0*[k + (1-k)(1 - exp(-k*x/(delta/L)))]   (initial transient)
 %       CS    = C0                                        (steady growth)
@@ -35,21 +35,35 @@ function fs_slider
 %
 %   Requires MATLAB R2020a or newer (uifigure / uislider).
 %
-%   Default values (k = 0.30, C0 = 1.0 wt.%) are illustrative only.
+%   Default material: Al-4.8 wt.% Cu. The temperature slider moves the
+%   liquidus tie-line and rescales k, D_s and D_L from the phase diagram
+%   and Arrhenius fits anchored at 648 C.
 
-C0   = 1.0;    % nominal composition, wt.%
-k    = 0.30;   % partition coefficient (k > 0)
+% Al-4.8 wt.% Cu reference properties
+Tm       = 660.3;    % melting point of pure Al, C
+Tref     = 648;      % liquidus temperature of the alloy, C
+Teut     = 548;      % solidus / eutectic temperature, C
+kRef     = 0.173;    % partition coefficient at Tref
+dsRef    = 4.8e-15;  % solid diffusivity at Tref, m^2/s
+dlRef    = 2.4e-9;   % liquid diffusivity at Tref, m^2/s
+Qs       = 130e3;    % solid activation energy, J/mol
+Ql       = 30e3;     % liquid activation energy, J/mol
+Rgas     = 8.314462618;
+
+C0   = 4.8;    % nominal composition, wt.%
+k    = kRef;   % partition coefficient (k > 0)
 fs0  = 0.50;   % initial solid fraction
+T0   = Tref;   % interface temperature, C
 
 % Model parameters
-v0       = 20;       % Tiller growth velocity, um/s
-dl0      = 1.0;      % Tiller liquid diffusivity, units of 1e-9 m^2/s
-L0       = 1e-3;     % Tiller characteristic length, m (1 mm)
-ds0      = 0.1;      % solid diffusivity, units of 1e-12 m^2/s
+v0       = 20;       % growth velocity, um/s
+dl0      = 2.4;      % liquid diffusivity, units of 1e-9 m^2/s
+L0       = 1e-3;     % characteristic length, m (1 mm)
+ds0      = 0.0048;   % solid diffusivity, units of 1e-12 m^2/s
 tf0      = 100;      % local solidification time, s
 lambda20 = 20;       % secondary dendrite arm spacing, microns
 alphaC0  = 0.10;     % Won-Thomas coarsening constant
-beta0    = 0.193253; % direct Clyne-Kurz beta (when override is enabled)
+beta0    = 0.0096;   % direct Clyne-Kurz beta (when override is enabled)
 
 solidColor  = [0.06 0.46 0.43];
 liquidColor = [0.76 0.25 0.05];
@@ -57,7 +71,7 @@ guideColor  = [0.15 0.30 0.55];
 
 %% UI
 fig = uifigure('Name','Solute redistribution: four solidification models', ...
-    'Color',[0.96 0.98 1.00], 'Position',[100 100 1120 830]);
+    'Color',[0.96 0.98 1.00], 'Position',[80 40 1180 940]);
 
 g = uigridlayout(fig,[3 2]);
 g.RowHeight = {40,'1x',150};
@@ -73,57 +87,85 @@ head.FontSize = 18; head.FontWeight = 'bold';
 head.FontColor = [0.06 0.13 0.20];
 
 % Control panel
-ctrl = uigridlayout(g,[9 2]);
+ctrl = uigridlayout(g,[13 2]);
 ctrl.Layout.Row = 2; ctrl.Layout.Column = 1;
-ctrl.RowHeight = {32,22,42,30,30,0,28,66,40};
+ctrl.RowHeight = {32,22,42,34,26,20,42,30,30,0,28,60,34};
 ctrl.ColumnWidth = {'1x',120};
 ctrl.Padding = [0 0 0 0];
-ctrl.RowSpacing = 8;
+ctrl.RowSpacing = 6;
 
 modelDrop = uidropdown(ctrl, ...
     'Items',{'Equilibrium (lever rule)', ...
              'Scheil-Gulliver', ...
-             'Tiller et al. (diffusion-controlled)', ...
+             'No solid diffusion, limited liquid diffusion', ...
              'Clyne-Kurz (back diffusion)'}, ...
     'Value','Equilibrium (lever rule)');
 modelDrop.Layout.Row = 1; modelDrop.Layout.Column = [1 2];
 
+lblT = uilabel(ctrl);
+lblT.Layout.Row = 2; lblT.Layout.Column = 1;
+lblT.Text = 'Interface temperature, T (C)';
+lblT.FontWeight = 'bold';
+
+valT = uilabel(ctrl);
+valT.Layout.Row = 2; valT.Layout.Column = 2;
+valT.HorizontalAlignment = 'right';
+valT.FontWeight = 'bold';
+valT.FontColor = liquidColor;
+
+tempSld = uislider(ctrl,'Limits',[Teut 700],'Value',T0);
+tempSld.Layout.Row = 3; tempSld.Layout.Column = [1 2];
+tempSld.MajorTicks = [Teut 600 648 700];
+tempSld.MajorTickLabels = {'548','600','648','700'};
+tempSld.MinorTicks = [];
+
+tieLbl = uilabel(ctrl);
+tieLbl.Layout.Row = 4; tieLbl.Layout.Column = [1 2];
+tieLbl.Text = 'Liquidus tie-line: C_L = 4.80, C_S = 0.830 wt.%';
+tieLbl.FontSize = 11;
+tieLbl.FontColor = [0.22 0.30 0.40];
+tieLbl.WordWrap = 'on';
+
+tempLinkCheck = uicheckbox(ctrl, ...
+    'Text','Derive k, D_s and D_L from T','Value',true);
+tempLinkCheck.Layout.Row = 5; tempLinkCheck.Layout.Column = [1 2];
+
 lblFs = uilabel(ctrl);
-lblFs.Layout.Row = 2; lblFs.Layout.Column = 1;
+lblFs.Layout.Row = 6; lblFs.Layout.Column = 1;
 lblFs.Text = 'Solid fraction, f_s';
 lblFs.FontWeight = 'bold';
 
 valFs = uilabel(ctrl);
-valFs.Layout.Row = 2; valFs.Layout.Column = 2;
+valFs.Layout.Row = 6; valFs.Layout.Column = 2;
 valFs.HorizontalAlignment = 'right';
 valFs.FontWeight = 'bold';
 valFs.FontColor = solidColor;
 
 sld = uislider(ctrl,'Limits',[0 1],'Value',fs0);
-sld.Layout.Row = 3; sld.Layout.Column = [1 2];
+sld.Layout.Row = 7; sld.Layout.Column = [1 2];
 sld.MajorTicks = [0 0.25 0.50 0.75 1.00];
 sld.MajorTickLabels = {'0','0.25','0.50','0.75','1.0'};
 sld.MinorTicks = [];
 
 lblK = uilabel(ctrl);
-lblK.Layout.Row = 4; lblK.Layout.Column = 1;
-lblK.Text = 'Partition coefficient, k  (k > 0)';
+lblK.Layout.Row = 8; lblK.Layout.Column = 1;
+lblK.Text = 'Partition coefficient, k';
 
 kField = uieditfield(ctrl,'numeric','Limits',[0.01 100], ...
-    'Value',k,'ValueDisplayFormat','%.2f');
-kField.Layout.Row = 4; kField.Layout.Column = 2;
+    'Value',k,'ValueDisplayFormat','%.4f');
+kField.Layout.Row = 8; kField.Layout.Column = 2;
 
 lblC0 = uilabel(ctrl);
-lblC0.Layout.Row = 5; lblC0.Layout.Column = 1;
+lblC0.Layout.Row = 9; lblC0.Layout.Column = 1;
 lblC0.Text = 'Nominal composition, C_0 (wt.%)';
 
 c0Field = uieditfield(ctrl,'numeric','Limits',[0.01 100], ...
     'Value',C0,'ValueDisplayFormat','%.2f');
-c0Field.Layout.Row = 5; c0Field.Layout.Column = 2;
+c0Field.Layout.Row = 9; c0Field.Layout.Column = 2;
 
 % Model-specific parameter panel
 pg = uigridlayout(ctrl,[8 2]);
-pg.Layout.Row = 6; pg.Layout.Column = [1 2];
+pg.Layout.Row = 10; pg.Layout.Column = [1 2];
 pg.RowHeight = {30,30,30,30,30,30,26,30};
 pg.ColumnWidth = {'1x',120};
 pg.Padding = [0 0 0 0];
@@ -183,15 +225,15 @@ betaField = uieditfield(pg,'numeric','Limits',[0 1], ...
 betaField.Layout.Row = 8; betaField.Layout.Column = 2;
 
 lblView = uilabel(ctrl);
-lblView.Layout.Row = 7; lblView.Layout.Column = 1;
+lblView.Layout.Row = 11; lblView.Layout.Column = 1;
 lblView.Text = 'Graph view';
 
 viewDrop = uidropdown(ctrl, ...
     'Items',{'Auto zoom','Fixed scale'},'Value','Auto zoom');
-viewDrop.Layout.Row = 7; viewDrop.Layout.Column = 2;
+viewDrop.Layout.Row = 11; viewDrop.Layout.Column = 2;
 
 eq = uilabel(ctrl);
-eq.Layout.Row = 8; eq.Layout.Column = [1 2];
+eq.Layout.Row = 12; eq.Layout.Column = [1 2];
 eq.Text = {'C_S = k C_0 / [1 - (1-k) f_s]', ...
            'C_L =     C_0 / [1 - (1-k) f_s]'};
 eq.FontName = 'Consolas';
@@ -201,7 +243,7 @@ eq.HorizontalAlignment = 'center';
 eq.BackgroundColor = [0.96 0.97 0.99];
 
 note = uilabel(ctrl);
-note.Layout.Row = 9; note.Layout.Column = [1 2];
+note.Layout.Row = 13; note.Layout.Column = [1 2];
 note.Text = 'Complete diffusion in solid and liquid (equilibrium limit).';
 note.FontSize = 11;
 note.FontColor = [0.35 0.42 0.50];
@@ -306,11 +348,14 @@ hDeltaText = text(axSpatial,0.5,0.1,'','HorizontalAlignment','center', ...
     'FontSize',9,'Color',[0.40 0.45 0.52],'Visible','off');
 hold(axSpatial,'off');
 
-% Tiller profile cache
-tillerKey = '';
-tillerX = [];
-tillerS = [];
-tillerI = [];
+% limited-liquid profile cache
+limitedKey = '';
+limitedX = [];
+limitedS = [];
+limitedI = [];
+
+% Temperature shown by the slider (event.Value during live dragging)
+tempDisplay = T0;
 
 % Initial render
 updatePanelLayout();
@@ -318,6 +363,9 @@ updateDisplay();
 
 sld.ValueChangingFcn = @(src,event) updateDisplay(event.Value);
 sld.ValueChangedFcn  = @(src,event) updateDisplay(src.Value);
+tempSld.ValueChangingFcn = @(src,event) updateTemperature(event.Value);
+tempSld.ValueChangedFcn  = @(src,event) updateTemperature(event.Value);
+tempLinkCheck.ValueChangedFcn = @(src,event) updateDisplay();
 modelDrop.ValueChangedFcn = @(src,event) onModelChanged();
 kField.ValueChangedFcn    = @(src,event) updateDisplay();
 c0Field.ValueChangedFcn   = @(src,event) updateDisplay();
@@ -336,7 +384,7 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
         tf = (modelDrop.ValueIndex == 2);
     end
 
-    function tf = isTiller()
+    function tf = isLimitedLiquid()
         tf = (modelDrop.ValueIndex == 3);
     end
 
@@ -353,28 +401,107 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
         updateDisplay();
     end
 
+    function updateTemperature(Tnew)
+        tempDisplay = Tnew;
+        updateDisplay();
+    end
+
     function updatePanelLayout()
-        if isTiller()
+        if isLimitedLiquid()
             pg.Visible = 'on';
             pg.RowHeight = {30,30,0,0,0,0,0,0};
-            ctrl.RowHeight = {32,22,42,30,30,88,28,66,40};
+            ctrl.RowHeight = {32,22,42,34,26,20,42,30,30,88,28,60,34};
             set([vLbl vField dlLbl dlField],'Visible','on');
             set([dsLbl dsField tfLbl tfField lamLbl lamField ...
                  aCLbl aCField wtCheck betaCheck betaField],'Visible','off');
         elseif isCK()
             pg.Visible = 'on';
             pg.RowHeight = {0,0,30,30,30,30,26,30};
-            ctrl.RowHeight = {32,22,42,30,30,204,28,66,40};
+            ctrl.RowHeight = {32,22,42,34,26,20,42,30,30,204,28,60,34};
             set([vLbl vField dlLbl dlField],'Visible','off');
             set([dsLbl dsField tfLbl tfField lamLbl lamField ...
                  aCLbl aCField wtCheck betaCheck betaField],'Visible','on');
         else
             pg.Visible = 'off';
-            ctrl.RowHeight = {32,22,42,30,30,0,28,66,40};
+            ctrl.RowHeight = {32,22,42,34,26,20,42,30,30,0,28,60,34};
         end
     end
 
-    % ── Tiller ─────────────────────────────────────────────
+    % ── Temperature-concentration coupling ─────────────────
+    % Quadratic liquidus and solidus fits through the Al-Cu points
+    % (0, 660.3), (4.8, 648), (33, 548) and
+    % (0, 660.3), (0.8304, 648), (5.65, 548).
+    function r = quadRoot(a,b,cFit,T)
+        if T >= cFit
+            r = 0;
+            return;
+        end
+        disc = b^2 - 4*a*(cFit - T);
+        if disc < 0
+            r = 0;
+        else
+            r = (-b - sqrt(disc))/(2*a);
+        end
+    end
+
+    function c = liquidusC(T)
+        c = max(0, quadRoot(-0.0298060391,-2.41943101,660.3,T));
+    end
+
+    function c = solidusC(T)
+        c = max(0, quadRoot(-1.05070285,-13.93963508,660.3,T));
+    end
+
+    function kk = kAtT(T)
+        cl = liquidusC(T);
+        cs = solidusC(T);
+        if cl < 1e-8
+            kk = kRef;
+        else
+            kk = cs/cl;
+        end
+    end
+
+    function d = dsAtT(T)
+        d = dsRef*exp(-(Qs/Rgas)*(1/(T+273.15) - 1/(Tref+273.15)));
+    end
+
+    function d = dlAtT(T)
+        d = dlRef*exp(-(Ql/Rgas)*(1/(T+273.15) - 1/(Tref+273.15)));
+    end
+
+    function syncTemperature(Tnow)
+        if tempLinkCheck.Value
+            kField.Value  = kAtT(Tnow);
+            dlField.Value = dlAtT(Tnow)*1e9;
+            dsField.Value = dsAtT(Tnow)*1e12;
+            kField.Enable = 'off';
+            dlField.Enable = 'off';
+            dsField.Enable = 'off';
+        else
+            kField.Enable = 'on';
+            dlField.Enable = 'on';
+            dsField.Enable = 'on';
+        end
+        valT.Text = sprintf('T = %.1f C',Tnow);
+        tieLbl.Text = tieLineText(Tnow);
+    end
+
+    function s = propText(kk)
+        s = sprintf('k = %.4f   D_s = %.3g   D_L = %.3g m^2/s', ...
+            kk,dsField.Value*1e-12,dlField.Value*1e-9);
+    end
+
+    function s = tieLineText(Tnow)
+        if Tnow >= Tm
+            s = sprintf('T = %.1f C: fully liquid (T > T_m = %.1f C)',Tnow,Tm);
+        else
+            s = sprintf('T = %.1f C  ->  C_L = %.2f, C_S = %.3f wt.%%  (k = %.4f)', ...
+                Tnow,liquidusC(Tnow),solidusC(Tnow),kAtT(Tnow));
+        end
+    end
+
+    % ── Limited liquid diffusion ───────────────────────────
     function d = deltaNow()
         v = max(vField.Value*1e-6, 1e-12);
         dl = max(dlField.Value*1e-9, 1e-15);
@@ -433,11 +560,11 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
         a(fsVal >= 1 - 1e-12) = 1;
     end
 
-    % ── Tiller et al. ──────────────────────────────────────
-    function [x,S,I] = tillerProfile(kVal,deltaVal)
+    % ── Limited liquid diffusion ───────────────────────────
+    function [x,S,I] = limitedProfile(kVal,deltaVal)
         key = sprintf('%.12g|%.12g',kVal,deltaVal);
-        if strcmp(key,tillerKey)
-            x = tillerX; S = tillerS; I = tillerI;
+        if strcmp(key,limitedKey)
+            x = limitedX; S = limitedS; I = limitedI;
             return;
         end
         N = 1400;
@@ -461,22 +588,22 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
             S(ig) = s;
             I(ig) = I(ig-1) + 0.5*(sPrev + s)*dx;
         end
-        tillerKey = key;
-        tillerX = x;
-        tillerS = S;
-        tillerI = I;
+        limitedKey = key;
+        limitedX = x;
+        limitedS = S;
+        limitedI = I;
     end
 
-    function v = tillerSAt(fsVal,kVal,deltaVal)
+    function v = limitedSAt(fsVal,kVal,deltaVal)
         if fsVal >= 1 - 1e-12
             v = Inf;
             return;
         end
-        [x,S,~] = tillerProfile(kVal,deltaVal);
+        [x,S,~] = limitedProfile(kVal,deltaVal);
         v = interp1(x,S,min(max(fsVal,0),x(end)));
     end
 
-    function v = tillerAvgAt(fsVal,kVal,deltaVal)
+    function v = limitedAvgAt(fsVal,kVal,deltaVal)
         if fsVal < 1e-9
             v = kVal;
             return;
@@ -484,11 +611,11 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
             v = 1;
             return;
         end
-        [x,~,I] = tillerProfile(kVal,deltaVal);
+        [x,~,I] = limitedProfile(kVal,deltaVal);
         v = interp1(x,I,min(fsVal,x(end)))/fsVal;
     end
 
-    function v = tillerCLAvgAt(fsVal,kVal,deltaVal)
+    function v = limitedCLAvgAt(fsVal,kVal,deltaVal)
         if fsVal >= 1 - 1e-12
             v = Inf;
             return;
@@ -496,7 +623,7 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
             v = 1;
             return;
         end
-        [x,~,I] = tillerProfile(kVal,deltaVal);
+        [x,~,I] = limitedProfile(kVal,deltaVal);
         Ii = interp1(x,I,min(fsVal,x(end)));
         v = (1 - Ii)/(1 - fsVal);
     end
@@ -504,9 +631,9 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
     % ── Axis limits ────────────────────────────────────────
     function top = yTopMain()
         kVal = kField.Value;
-        if isTiller()
+        if isLimitedLiquid()
             deltaVal = deltaNow();
-            csCap = tillerSAt(0.99,kVal,deltaVal);
+            csCap = limitedSAt(0.99,kVal,deltaVal);
             clCap = csCap/kVal;
             top = min(25, 1.06*max([1 kVal csCap clCap]));
         elseif isCK()
@@ -560,16 +687,19 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
             fsRequested = sld.Value;
         end
 
+        Tnow = tempDisplay;
+        syncTemperature(Tnow);
+
         kNow  = kField.Value;
         c0Now = c0Field.Value;
         fsNow = max(0,min(1,fsRequested));
 
         % ── Current compositions, normalized to C0 ──
-        if isTiller()
-            csN = tillerSAt(fsNow,kNow,deltaNow());
+        if isLimitedLiquid()
+            csN = limitedSAt(fsNow,kNow,deltaNow());
             clN = csN/kNow;
-            avgN = tillerAvgAt(fsNow,kNow,deltaNow());
-            clAvgN = tillerCLAvgAt(fsNow,kNow,deltaNow());
+            avgN = limitedAvgAt(fsNow,kNow,deltaNow());
+            clAvgN = limitedCLAvgAt(fsNow,kNow,deltaNow());
         elseif isCK()
             clN = ckCLNorm(fsNow,kNow);
             csN = kNow*clN;
@@ -598,12 +728,12 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
         clAvgNow = clAvgN*c0Now;
 
         singular = fsNow >= 1 - 1e-9 && ...
-            ((isScheil() && kNow < 1) || isTiller() || ...
+            ((isScheil() && kNow < 1) || isLimitedLiquid() || ...
              (isCK() && betaCK(alphaEff()) < 1e-9 && kNow < 1));
 
         % ── Main curves ──
-        if isTiller()
-            [tx,tS,~] = tillerProfile(kNow,deltaNow());
+        if isLimitedLiquid()
+            [tx,tS,~] = limitedProfile(kNow,deltaNow());
             csCurve = interp1(tx,tS,fsGrid);
             clCurve = csCurve/kNow;
         elseif isCK()
@@ -633,8 +763,8 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
         set(hGuide,'XData',[fsNow fsNow],'YData',[0 yTop]);
         ylim(ax,[0 yTop]);
 
-        % ── Tiller stage bands ──
-        if isTiller()
+        % ── Stage bands ──
+        if isLimitedLiquid()
             delta = deltaNow();
             xInit = min(0.45, delta/kNow);
             xFinal = max(0.55, 1 - delta);
@@ -669,8 +799,8 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
         if fsNow < 1e-9
             xSolid = [0 0];
             ySolid = [NaN NaN];
-        elseif isTiller()
-            [tx,tS,~] = tillerProfile(kNow,deltaNow());
+        elseif isLimitedLiquid()
+            [tx,tS,~] = limitedProfile(kNow,deltaNow());
             xSolid = linspace(0,fsNow,220);
             ySolid = interp1(tx,tS,xSolid);
         elseif isCK()
@@ -688,7 +818,7 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
 
         % Liquid profile
         if fsNow < 1 - 1e-9 && isfinite(clN)
-            if isTiller()
+            if isLimitedLiquid()
                 z = linspace(0,1-fsNow,140);
                 yLiquid = 1 + (clN - 1)*exp(-z/deltaNow());
                 xLiquid = fsNow + z;
@@ -718,8 +848,8 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
             set(hConnL,'XData',NaN,'YData',NaN);
         end
 
-        % Tiller boundary-layer thickness marker
-        if isTiller() && fsNow < 1 - 1e-9
+        % Boundary-layer thickness marker
+        if isLimitedLiquid() && fsNow < 1 - 1e-9
             delta = deltaNow();
             zEnd = min(delta, 1 - fsNow);
             if zEnd > 0.004
@@ -756,8 +886,8 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
         ylim(axSpatial,[0 yTopS]);
 
         % ── Labels, equations, readout ──
-        if isTiller()
-            head.Text = 'SOLUTE REDISTRIBUTION  |  TILLER ET AL.';
+        if isLimitedLiquid()
+            head.Text = 'SOLUTE REDISTRIBUTION  |  LIMITED LIQUID DIFFUSION';
             eq.Text = {'C_S(x) = C_0[k + (1-k)(1 - e^{-k x/(\delta/L)})]', ...
                        'C_L(z) = C_0[1 + (1-k)/k e^{-z/(\delta/L)}]', ...
                        '\delta/L = D_L/(vL),  L = 1 mm'};
@@ -774,7 +904,9 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
                     bals*c0Now, c0Now);
             end
             readout.Value = {
-                'Model   Tiller et al. (no solid diffusion, no liquid mixing)'
+                'Model   No solid diffusion, limited liquid diffusion'
+                tieLineText(Tnow)
+                propText(kNow)
                 sprintf('Solid (interface)  C_S* = %s wt.%%',fmtNum(csNow))
                 sprintf('Average solid      C_S,avg = %s wt.%%',fmtNum(avgNow))
                 sprintf('Liquid (interface) C_L* = %s wt.%%',fmtNum(clNow))
@@ -819,6 +951,8 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
             end
             readout.Value = {
                 'Model   Clyne-Kurz (finite back diffusion, mixed liquid)'
+                tieLineText(Tnow)
+                propText(kNow)
                 sprintf('Solid (interface)  C_S* = %s wt.%%',fmtNum(csNow))
                 sprintf('Average solid      C_S,avg = %s wt.%%',fmtNum(avgNow))
                 sprintf('Liquid             C_L = %s wt.%%',fmtNum(clNow))
@@ -843,6 +977,8 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
             end
             readout.Value = {
                 'Model   Scheil-Gulliver (D_S = 0, D_L -> inf)'
+                tieLineText(Tnow)
+                propText(kNow)
                 sprintf('Solid (interface)  C_S* = %s wt.%%',fmtNum(csNow))
                 sprintf('Average solid      C_S,avg = %s wt.%%',fmtNum(avgNow))
                 sprintf('Liquid             C_L = %s wt.%%',fmtNum(clNow))
@@ -861,6 +997,8 @@ viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
                 bals*c0Now, c0Now);
             readout.Value = {
                 'Model   Equilibrium (lever rule)'
+                tieLineText(Tnow)
+                propText(kNow)
                 sprintf('Solid   C_S = %s wt.%%',fmtNum(csNow))
                 sprintf('Liquid  C_L = %s wt.%%',fmtNum(clNow))
                 balanceText

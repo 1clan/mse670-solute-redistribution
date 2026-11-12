@@ -27,8 +27,8 @@ function [Cs, Cl, CsAvg, ClAvg] = scheil_model(k, c0, fs)
 %
 %   For k < 1 the liquid and interface solid compositions diverge as fs -> 1.
 %
-%   Example
-%       [Cs, Cl, CsAvg] = scheil_model(0.3, 1.0, 0.5)
+%   Example (Al-4.8 wt.% Cu)
+%       [Cs, Cl, CsAvg] = scheil_model(0.173, 4.8, 0.5)
 
 Cl = c0 .* (1 - fs).^(k - 1);
 Cs = k .* Cl;
