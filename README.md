@@ -7,12 +7,14 @@ An interactive graph for **solute redistribution during solidification**, based 
 - **No solid diffusion, limited liquid diffusion** — diffusion-controlled planar growth: no solid diffusion, no convective mixing in the liquid, and a solute boundary layer ahead of the interface.
 - **Clyne–Kurz** — finite solid back diffusion with a fully mixed liquid, plus an optional Won–Thomas coarsening correction.
 
-The alloy is described by `C₀ = 4.8 wt.% Cu`, `k = 0.173`, `D_L = 2.4×10⁻⁹ m²/s`, `D_S = 4.8×10⁻¹⁵ m²/s`, liquidus `T_L = 648 °C`, and solidus/eutectic `T_S = 548 °C`. A **temperature slider** changes the liquidus tie-line and rescales `k`, `D_S`, and `D_L` through the phase diagram and Arrhenius fits.
+The alloy is described by `C₀ = 4.8 wt.% Cu`, `k = 0.173`, `D_L = 2.4×10⁻⁹ m²/s`, `D_S = 4.8×10⁻¹⁵ m²/s`, liquidus `T_L = 648 °C`, and solidus/eutectic `T_S = 548 °C`. A **temperature slider** changes the liquidus tie-line and rescales `k`, `D_S`, and `D_L` through the phase diagram and Arrhenius fits. Logarithmic **`k` and `C₀` sliders** (0.01–100) sit next to editable number boxes, so the same values can be dragged or typed.
 
-It comes in two versions that stay in sync:
+It comes in two versions that share the same model equations:
 
 - `index.html` — runs in any browser, no installation needed.
-- `fs_slider.m` — the same slider app in MATLAB.
+- `fs_slider.m` — the same models in a MATLAB app.
+
+The browser version additionally provides the `k`/`C₀` sliders and the Play animation; the MATLAB app still uses typed fields for those values.
 
 **Live demo:** https://1clan.github.io/mse670-solute-redistribution/
 
@@ -29,9 +31,11 @@ Move the **solid fraction `f_s`** slider from 0 to 1 and watch:
 
 Use the **Graph view** switch to choose between `Auto zoom` (the along-bar chart rescales for readability) and `Fixed scale` (the axes, grid, and background stay put and only the plotted data changes as the slider moves).
 
+Press **▶ Play** beside the `f_s` slider to sweep the solid fraction from 0 to 1 and back; the button toggles to **❚❚ Pause**, and dragging the slider also stops the animation.
+
 ## Models
 
-Pick a model with the 2×2 buttons above the controls. `k` can be any positive number — it is **not** limited to `0 < k ≤ 1`. By default, `k`, `D_S`, and `D_L` are derived from the temperature slider; untick **Derive k, Ds and DL from T** to treat them as independent sensitivity variables.
+Pick a model with the 2×2 buttons above the controls. `k` can be any positive number — it is **not** limited to `0 < k ≤ 1`. By default, `k`, `D_S`, and `D_L` are derived from the temperature slider; move the `k` slider or untick **Derive k, Ds and DL from T** to treat them as independent sensitivity variables.
 
 ### Equilibrium (lever rule)
 
@@ -180,7 +184,7 @@ with `D_S,ref = 4.8×10⁻¹⁵ m²/s`, `D_L,ref = 2.4×10⁻⁹ m²/s`, `Q_S = 
 δ/L = D_L(T) / (v L)
 ```
 
-The slider range is `548–700 °C`, default `648 °C`. Above `T_m = 660.3 °C` the alloy is fully liquid; the tie-line readout says so and the model curves are retained for reference. A direct `k`, `D_S`, or `D_L` override is still available by unticking **Derive k, Ds and DL from T**.
+The slider range is `548–700 °C`, default `648 °C`. Above `T_m = 660.3 °C` the alloy is fully liquid; the tie-line readout says so and the model curves are retained for reference. A direct `k`, `D_S`, or `D_L` override is still available by moving the `k` slider or unticking **Derive k, Ds and DL from T**.
 
 The local solidification time can be tied to the cooling rate through
 
@@ -258,15 +262,16 @@ outW = won_thomas_model(0.173, 4.8, 4.8e-15, 100, 20e-6, 0.9, 0.1);
 | Graph view | `Auto zoom` rescales the along-bar chart as `f_s` changes; `Fixed scale` locks the axes, grid, and background so only the plotted data moves with the slider. |
 | `T` slider | Interface temperature from 548 to 700 °C; default 648 °C. Sets the liquidus tie-line and, when coupled, `k(T)`, `D_S(T)`, and `D_L(T)`. |
 | `f_s` slider | Solid fraction, from 0 (all liquid) to 1 (all solid). |
-| `k` | Partition coefficient, `k = C_S*/C_L*`. Derived from the phase diagram as `C_S,eq(T)/C_L,eq(T)` when temperature coupling is on; `k ≈ 0.173` at 648 °C. Can be entered manually (0.01–100) when coupling is off. |
-| `C_0` | Nominal solute concentration in wt.%. Default 4.8 wt.% (Al–4.8 wt.% Cu). |
+| Play | Animates `f_s` from 0 to 1 and back; click again to pause. Dragging the slider also pauses. |
+| `k` | Partition coefficient, `k = C_S*/C_L*`. Derived from the phase diagram as `C_S,eq(T)/C_L,eq(T)` when temperature coupling is on; `k ≈ 0.173` at 648 °C. A logarithmic slider spans 0.01–100 and the number box stays editable; moving the slider or typing a value switches coupling off so `k` is a manual override. |
+| `C_0` | Nominal solute concentration in wt.%. Default 4.8 wt.% (Al–4.8 wt.% Cu). A logarithmic slider spans 0.01–100 and the number box stays editable. |
 | `v` | Interface growth velocity, entered in µm/s. With `L = 1 mm`, the default `v = 20 µm/s` and `D_L = 2.4×10⁻⁹ m²/s` give `δ/L = 0.12`. |
 | `D_L` | Liquid diffusivity, entered in units of `10⁻⁹ m²/s`; default `2.4` (i.e. `2.4×10⁻⁹ m²/s` at 648 °C). |
 | `D_s` | Solid diffusivity, entered in units of `10⁻¹² m²/s`; default `0.0048` (i.e. `4.8×10⁻¹⁵ m²/s` at 648 °C). |
 | `t_f` | Local solidification time in seconds; default 100 s, corresponding to `(T_L − T_S)/CR` at `CR = 1 °C/s`. |
 | `λ₂` | Secondary dendrite arm spacing in µm; default 20 µm. |
 | `α_C` | Won–Thomas coarsening constant; default 0.10. |
-| Derive k, Ds and DL from T | Temperature coupling (default on). Untick it to enter `k`, `D_S`, and `D_L` manually. |
+| Derive k, Ds and DL from T | Temperature coupling (default on). Untick it to enter `k`, `D_S`, and `D_L` manually; moving the `k` slider unticks it automatically. |
 | Won–Thomas | Replaces `α` by `α⁺ = 2(α + α_C)` before computing `β_CK`. |
 | Direct β | Overrides the `α`-derived `β_CK` with the entered value (0–1). Use this to treat `β` as a sensitivity variable; it bypasses `α` and Won–Thomas. |
 

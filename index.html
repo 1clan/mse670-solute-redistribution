@@ -274,6 +274,81 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .slider-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .play-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border: 1px solid #b9d9d4;
+    border-radius: 10px;
+    background: #f0fbf9;
+    color: #0b5b54;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 750;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .play-btn:hover { background: #e2f6f2; }
+
+  .play-btn.playing {
+    background: var(--solid);
+    border-color: var(--solid);
+    color: #ffffff;
+  }
+
+  .play-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.18);
+  }
+
+  .control-stack { display: grid; gap: 16px; }
+
+  .slider-field .field-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  .slider-field label {
+    font-size: 12.5px;
+    font-weight: 650;
+  }
+
+  .slider-field label span {
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .slider-field input[type="number"] {
+    width: 92px;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid #ccd6e2;
+    border-radius: 10px;
+    background: #fbfcfe;
+    font: inherit;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+
+  .slider-field input[type="number"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.13);
+  }
+
   .divider {
     height: 1px;
     background: var(--line);
@@ -959,7 +1034,17 @@
               Solid fraction, f<sub>s</sub>
               <small>Fraction of the alloy that has solidified</small>
             </div>
-            <output class="value-badge" id="fsBadge" for="fsSlider">0.500</output>
+            <div class="slider-actions">
+              <output class="value-badge" id="fsBadge" for="fsSlider">0.500</output>
+              <button
+                id="playBtn"
+                class="play-btn"
+                type="button"
+                aria-pressed="false"
+                aria-label="Animate solid fraction back and forth"
+                title="Animate the solid fraction back and forth"
+              >▶ Play</button>
+            </div>
           </div>
           <input
             id="fsSlider"
@@ -995,14 +1080,39 @@
 
         <div class="divider"></div>
 
-        <div class="mini-grid">
-          <div class="field">
-            <label for="kInput">Partition coefficient, k <span>(from T)</span></label>
-            <input id="kInput" type="number" min="0.01" max="100" step="0.001" value="0.173" />
+        <div class="control-stack">
+          <div class="slider-field">
+            <div class="field-head">
+              <label for="kInput">Partition coefficient, k <span>(from T; edit to override)</span></label>
+              <input id="kInput" type="number" min="0.01" max="100" step="0.001" value="0.173" />
+            </div>
+            <input
+              id="kSlider"
+              type="range"
+              min="0"
+              max="1000"
+              step="1"
+              value="310"
+              aria-label="Partition coefficient slider, logarithmic from 0.01 to 100"
+              title="Move to override k manually and turn off temperature coupling"
+            />
+            <div class="range-scale"><span>0.01</span><span>100</span></div>
           </div>
-          <div class="field">
-            <label for="c0Input">Nominal composition, C<sub>0</sub> <span>(wt.%)</span></label>
-            <input id="c0Input" type="number" min="0.01" max="100" step="0.1" value="4.8" />
+          <div class="slider-field">
+            <div class="field-head">
+              <label for="c0Input">Nominal composition, C<sub>0</sub> <span>(wt.%)</span></label>
+              <input id="c0Input" type="number" min="0.01" max="100" step="0.1" value="4.8" />
+            </div>
+            <input
+              id="c0Slider"
+              type="range"
+              min="0"
+              max="1000"
+              step="1"
+              value="670"
+              aria-label="Nominal composition slider, logarithmic from 0.01 to 100 wt percent"
+            />
+            <div class="range-scale"><span>0.01</span><span>100</span></div>
           </div>
         </div>
 
@@ -1092,11 +1202,11 @@
         <div class="stats">
           <div class="stat solid">
             <div class="stat-label"><span class="swatch"></span> <span id="csLabel">Solid, C<sub>S</sub></span></div>
-            <div class="stat-value"><span id="csValue">0.462</span><small>wt.%</small></div>
+            <div class="stat-value"><span id="csValue">1.416</span><small>wt.%</small></div>
           </div>
           <div class="stat liquid">
             <div class="stat-label"><span class="swatch"></span> <span id="clLabel">Liquid, C<sub>L</sub></span></div>
-            <div class="stat-value"><span id="clValue">1.538</span><small>wt.%</small></div>
+            <div class="stat-value"><span id="clValue">8.184</span><small>wt.%</small></div>
           </div>
         </div>
 
@@ -1112,7 +1222,7 @@
 
         <div class="balance" id="balanceBox">
           <span>Mass balance <em>f</em><sub>s</sub>C<sub>S,avg</sub> + (1−<em>f</em><sub>s</sub>)C<sub>L,avg</sub></span>
-          <span id="balanceRight"><strong id="balanceValue">1.000</strong> <span class="ok" id="balanceMark">= C<sub>0</sub></span></span>
+          <span id="balanceRight"><strong id="balanceValue">4.800</strong> <span class="ok" id="balanceMark">= C<sub>0</sub></span></span>
         </div>
       </section>
     </aside>
@@ -1322,6 +1432,7 @@
   const els = {
     fsSlider: document.getElementById("fsSlider"),
     fsBadge: document.getElementById("fsBadge"),
+    playBtn: document.getElementById("playBtn"),
     tempSlider: document.getElementById("tempSlider"),
     tempBadge: document.getElementById("tempBadge"),
     tempLinkToggle: document.getElementById("tempLinkToggle"),
@@ -1330,7 +1441,9 @@
     tieCL: document.getElementById("tieCL"),
     tieCS: document.getElementById("tieCS"),
     kInput: document.getElementById("kInput"),
+    kSlider: document.getElementById("kSlider"),
     c0Input: document.getElementById("c0Input"),
+    c0Slider: document.getElementById("c0Slider"),
     csValue: document.getElementById("csValue"),
     clValue: document.getElementById("clValue"),
     csAvgValue: document.getElementById("csAvgValue"),
@@ -1372,6 +1485,93 @@
 
   const modelButtons = Array.from(document.querySelectorAll(".model-btn"));
   const viewButtons = Array.from(document.querySelectorAll(".view-btn"));
+
+  // ── Logarithmic slider helpers ─────────────────────────────
+  // k and C0 share the same 0.01–100 range. A log mapping gives useful
+  // resolution near the default Al–4.8 wt.% Cu values instead of bunching
+  // them against the left edge of a linear slider.
+  const LOG_MIN = 0.01;
+  const LOG_MAX = 100;
+  const LOG_STEPS = 1000;
+
+  function sliderToLogValue(position) {
+    const t = Math.min(1, Math.max(0, position / LOG_STEPS));
+    return Math.pow(10, Math.log10(LOG_MIN) + t * (Math.log10(LOG_MAX) - Math.log10(LOG_MIN)));
+  }
+
+  function logValueToSlider(value) {
+    const clamped = Math.min(LOG_MAX, Math.max(LOG_MIN, value));
+    const t = (Math.log10(clamped) - Math.log10(LOG_MIN)) /
+      (Math.log10(LOG_MAX) - Math.log10(LOG_MIN));
+    return Math.round(t * LOG_STEPS);
+  }
+
+  function setSliderFill(el, position, steps = LOG_STEPS) {
+    el.style.setProperty("--pct", `${Math.min(100, Math.max(0, (position / steps) * 100))}%`);
+  }
+
+  // ── Play animation ─────────────────────────────────────────
+  // The button sweeps f_s from 0 to 1 and back. It uses requestAnimationFrame
+  // so the movement is smooth and pauses automatically when the tab is hidden.
+  const PLAY_RATE = 0.18; // solid fraction per second
+  const play = { running: false, raf: 0, lastTs: 0, dir: 1 };
+
+  function updatePlayButton() {
+    els.playBtn.textContent = play.running ? "❚❚ Pause" : "▶ Play";
+    els.playBtn.classList.toggle("playing", play.running);
+    els.playBtn.setAttribute("aria-pressed", String(play.running));
+    els.playBtn.setAttribute(
+      "aria-label",
+      play.running ? "Pause solid fraction animation" : "Animate solid fraction back and forth"
+    );
+  }
+
+  function stopPlay() {
+    if (!play.running) return;
+    play.running = false;
+    if (play.raf) cancelAnimationFrame(play.raf);
+    play.raf = 0;
+    play.lastTs = 0;
+    updatePlayButton();
+  }
+
+  function startPlay() {
+    if (play.running) return;
+    play.running = true;
+    play.lastTs = 0;
+    if (state.fs >= 1 - 1e-9) {
+      play.dir = -1;
+    } else if (state.fs <= 1e-9) {
+      play.dir = 1;
+    }
+    updatePlayButton();
+    play.raf = requestAnimationFrame(stepPlay);
+  }
+
+  function stepPlay(timestamp) {
+    if (!play.running) return;
+    if (!play.lastTs) play.lastTs = timestamp;
+    const dt = Math.min(0.05, (timestamp - play.lastTs) / 1000);
+    play.lastTs = timestamp;
+
+    let next = state.fs + play.dir * dt * PLAY_RATE;
+    if (next >= 1) {
+      next = 1;
+      play.dir = -1;
+    } else if (next <= 0) {
+      next = 0;
+      play.dir = 1;
+    }
+
+    const snapped = Math.round(next * 1000) / 1000;
+    if (snapped !== state.fs) setState({ fs: snapped });
+    play.raf = requestAnimationFrame(stepPlay);
+  }
+
+  function togglePlay() {
+    if (play.running) stopPlay();
+    else startPlay();
+  }
 
   // ── Temperature–concentration coupling ─────────────────────
   // The notes use the dilute liquidus relation T = T_m + m_L C_L with
@@ -1431,7 +1631,6 @@
       els.dsInput.value = (state.ds / 1e-12).toPrecision(4);
       els.dlInput.value = (state.dl / 1e-9).toPrecision(4);
     }
-    els.kInput.disabled = state.tempLinked;
     els.dsInput.disabled = state.tempLinked;
     els.dlInput.disabled = state.tempLinked;
 
@@ -1444,8 +1643,11 @@
     els.tieCL.textContent = fullyLiquid ? "0.00" : clEq.toFixed(2);
     els.tieCS.textContent = fullyLiquid ? "0.00" : csEq.toFixed(3);
     els.kInput.title = state.tempLinked
-      ? "Derived from the phase diagram at the slider temperature"
+      ? "Derived from the phase diagram. Typing a value switches to manual k."
       : "Manual value (temperature coupling is off)";
+    els.kSlider.title = state.tempLinked
+      ? "Move to override k manually and turn off temperature coupling"
+      : "Manual partition coefficient";
   }
 
   // ── Model ──────────────────────────────────────────────────
@@ -2516,14 +2718,28 @@
     }
   }
 
+  function syncParameterSliders() {
+    const kPos = logValueToSlider(state.k);
+    els.kSlider.value = String(kPos);
+    setSliderFill(els.kSlider, kPos);
+    els.kSlider.setAttribute("aria-valuetext", state.k.toFixed(4));
+
+    const c0Pos = logValueToSlider(state.c0);
+    els.c0Slider.value = String(c0Pos);
+    setSliderFill(els.c0Slider, c0Pos);
+    els.c0Slider.setAttribute("aria-valuetext", state.c0.toFixed(2));
+  }
+
   function update() {
     const { fs } = state;
 
     syncTemperature();
+    syncParameterSliders();
     syncModelUI();
     updateParamHints();
 
     // Slider fill + labels
+    els.fsSlider.value = String(fs);
     els.fsSlider.style.setProperty("--pct", `${fs * 100}%`);
     els.fsBadge.textContent = fs.toFixed(3);
     els.fsSlider.setAttribute("aria-valuetext", fs.toFixed(3));
@@ -2575,7 +2791,29 @@
 
   // ── Events ─────────────────────────────────────────────────
   els.fsSlider.addEventListener("input", (event) => {
+    stopPlay();
     setState({ fs: Number(event.target.value) });
+  });
+
+  els.playBtn.addEventListener("click", togglePlay);
+
+  // Manually moving the k slider turns temperature coupling off so the
+  // slider value is not immediately overwritten by the phase diagram.
+  els.kSlider.addEventListener("input", (event) => {
+    const value = Number(sliderToLogValue(Number(event.target.value)).toFixed(4));
+    els.kInput.value = String(value);
+    const patch = { k: value };
+    if (state.tempLinked) {
+      patch.tempLinked = false;
+      els.tempLinkToggle.checked = false;
+    }
+    setState(patch);
+  });
+
+  els.c0Slider.addEventListener("input", (event) => {
+    const value = Number(sliderToLogValue(Number(event.target.value)).toFixed(2));
+    els.c0Input.value = String(value);
+    setState({ c0: value });
   });
 
   els.tempSlider.addEventListener("input", (event) => {
@@ -2623,15 +2861,25 @@
   els.kInput.addEventListener("input", (event) => {
     const value = Number(event.target.value);
     if (Number.isFinite(value) && value > 0 && value <= 100) {
-      setState({ k: value });
+      const patch = { k: value };
+      // Typing a k value is a manual override: stop deriving k from T.
+      if (state.tempLinked) {
+        patch.tempLinked = false;
+        els.tempLinkToggle.checked = false;
+      }
+      setState(patch);
     }
   });
 
   els.kInput.addEventListener("blur", (event) => {
     const value = Number(event.target.value);
     if (!Number.isFinite(value) || value <= 0) {
-      event.target.value = "0.173";
-      setState({ k: ALLOY.kRef });
+      if (state.tempLinked) {
+        setState({ k: kAtT(state.T) });
+      } else {
+        event.target.value = String(ALLOY.kRef);
+        setState({ k: ALLOY.kRef });
+      }
     } else if (value > 100) {
       event.target.value = "100";
       setState({ k: 100 });
