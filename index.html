@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Solute Redistribution · Equilibrium Solidification</title>
+<title>Solute Redistribution · Equilibrium &amp; Scheil–Gulliver</title>
 <style>
   :root {
     --bg: #eef2f7;
@@ -126,6 +126,51 @@
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--muted);
+  }
+
+  .model-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-top: 14px;
+    padding: 4px;
+    border: 1px solid #e2eaf4;
+    border-radius: 12px;
+    background: #eef3f9;
+  }
+
+  .model-btn {
+    appearance: none;
+    border: 0;
+    border-radius: 9px;
+    padding: 9px 8px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 650;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .model-btn:hover { color: var(--ink); }
+
+  .model-btn.active {
+    background: #ffffff;
+    color: var(--ink);
+    box-shadow: 0 2px 8px rgba(16, 32, 51, 0.1);
+  }
+
+  .model-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.18);
+  }
+
+  .model-blurb {
+    margin: 10px 2px 0;
+    color: var(--muted);
+    font-size: 11.5px;
+    line-height: 1.5;
   }
 
   .slider-block { margin-top: 26px; }
@@ -436,6 +481,38 @@
     font-weight: 700;
   }
 
+  .balance.warn {
+    background: #fff8ef;
+    border-color: #f1d3ae;
+    border-style: solid;
+  }
+
+  .balance.warn .ok { color: #b45309; }
+
+  .avg-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 10px 14px;
+    border-radius: 11px;
+    background: #f8fafc;
+    border: 1px solid #e7edf5;
+    color: var(--muted);
+    font-size: 11.5px;
+  }
+
+  .avg-line[hidden] { display: none; }
+
+  .avg-line strong {
+    color: var(--solid);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .avg-line small { color: var(--muted); font-size: 10.5px; }
+
   .graph-card {
     padding: 18px 18px 14px;
     overflow: hidden;
@@ -684,11 +761,11 @@
       <div class="eyebrow">MSE 670 · Solidification</div>
       <h1>Solute redistribution<br />during solidification</h1>
       <p class="subtitle">
-        Move the solid-fraction slider to watch how the equilibrium solid and liquid
-        compositions evolve as an alloy freezes. Based on the lever rule from the course notes.
+        Move the solid-fraction slider to watch how the solid and liquid compositions evolve.
+        Compare the equilibrium lever rule with the Scheil&ndash;Gulliver no-solid-diffusion limit.
       </p>
     </div>
-    <div class="chip"><span class="dot"></span> Equilibrium solidification</div>
+    <div class="chip"><span class="dot"></span> Lever rule · Scheil–Gulliver</div>
   </header>
 
   <div class="layout">
@@ -696,6 +773,14 @@
     <aside>
       <section class="card controls" aria-label="Model controls">
         <h2>Controls</h2>
+
+        <div class="model-switch" role="group" aria-label="Solidification model">
+          <button type="button" class="model-btn active" data-model="equilibrium" aria-pressed="true">Equilibrium</button>
+          <button type="button" class="model-btn" data-model="scheil" aria-pressed="false">Scheil–Gulliver</button>
+        </div>
+        <p class="model-blurb" id="modelBlurb">
+          Complete diffusion in both phases. The solid remains uniform at every stage.
+        </p>
 
         <div class="slider-block">
           <div class="slider-head">
@@ -721,8 +806,8 @@
 
         <div class="mini-grid">
           <div class="field">
-            <label for="kInput">Partition coefficient, k <span>(0–1)</span></label>
-            <input id="kInput" type="number" min="0.05" max="1" step="0.01" value="0.30" />
+            <label for="kInput">Partition coefficient, k <span>(k &gt; 0)</span></label>
+            <input id="kInput" type="number" min="0.01" max="100" step="0.01" value="0.30" />
           </div>
           <div class="field">
             <label for="c0Input">Nominal composition, C<sub>0</sub> <span>(wt.%)</span></label>
@@ -731,15 +816,15 @@
         </div>
 
         <div class="equation">
-          <span class="equation-label">Lever-rule result</span>
-          <div class="formula">
+          <span class="equation-label" id="equationLabel">Lever-rule result</span>
+          <div class="formula" id="formula">
             C<sub>S</sub> =
             <span class="frac">
               <span class="num">k C<sub>0</sub></span>
               <span class="den">1 − (1 − k) f<sub>s</sub></span>
             </span>
           </div>
-          <p class="equation-note">
+          <p class="equation-note" id="equationNote">
             At equilibrium the liquid composition is
             <em>C<sub>L</sub> = C<sub>0</sub> / [1 − (1 − k)f<sub>s</sub>]</em>.
           </p>
@@ -754,18 +839,23 @@
 
         <div class="stats">
           <div class="stat solid">
-            <div class="stat-label"><span class="swatch"></span> Solid, C<sub>S</sub></div>
-            <div class="stat-value"><span id="csValue">0.353</span><small>wt.%</small></div>
+            <div class="stat-label"><span class="swatch"></span> <span id="csLabel">Solid, C<sub>S</sub></span></div>
+            <div class="stat-value"><span id="csValue">0.462</span><small>wt.%</small></div>
           </div>
           <div class="stat liquid">
             <div class="stat-label"><span class="swatch"></span> Liquid, C<sub>L</sub></div>
-            <div class="stat-value"><span id="clValue">1.176</span><small>wt.%</small></div>
+            <div class="stat-value"><span id="clValue">1.538</span><small>wt.%</small></div>
           </div>
         </div>
 
-        <div class="balance">
-          <span>Mass balance <em>f</em><sub>s</sub>C<sub>S</sub> + (1−<em>f</em><sub>s</sub>)C<sub>L</sub></span>
-          <span><strong id="balanceValue">1.000</strong> <span class="ok">= C<sub>0</sub></span></span>
+        <div class="avg-line" id="avgLine" hidden>
+          <span>Average solid, C<sub>S,avg</sub></span>
+          <span><strong id="csAvgValue">—</strong> <small>wt.%</small></span>
+        </div>
+
+        <div class="balance" id="balanceBox">
+          <span>Mass balance <em>f</em><sub>s</sub>C<sub>S,avg</sub> + (1−<em>f</em><sub>s</sub>)C<sub>L</sub></span>
+          <span id="balanceRight"><strong id="balanceValue">1.000</strong> <span class="ok" id="balanceMark">= C<sub>0</sub></span></span>
         </div>
       </section>
     </aside>
@@ -776,7 +866,7 @@
         <div class="graph-top">
           <div class="graph-title">
             <h3>Composition vs. solid fraction</h3>
-            <p>Normalized concentration <em>C / C<sub>0</sub></em> as freezing progresses</p>
+            <p id="graphSubtitle">Normalized concentration <em>C / C<sub>0</sub></em> as freezing progresses</p>
           </div>
           <div class="legend" aria-hidden="true">
             <span><i class="key"></i> Solid C<sub>S</sub></span>
@@ -802,7 +892,7 @@
           <div class="spatial-head">
             <div>
               <h4>Composition along the bar</h4>
-              <p>Solid and liquid concentrations at the current interface position</p>
+              <p id="spatialSubtitle">Uniform solid and liquid compositions at the current interface position</p>
             </div>
             <div class="bar-legend" aria-hidden="true">
               <span><i class="s"></i> Solid <b id="solidPct">50.0%</b></span>
@@ -825,23 +915,23 @@
         </div>
 
         <details class="derivation">
-          <summary>Where the equation comes from</summary>
-          <p>
+          <summary>Where the equations come from</summary>
+          <p id="derivationP1">
             Solute is conserved in the closed volume:
             <code>C₀ = f_s C_S + (1 − f_s) C_L</code>.
             Local equilibrium at the solid–liquid interface gives
             <code>C_S = k C_L</code>. Substituting and solving for <code>C_L</code> gives the
             lever rule, and multiplying by <code>k</code> gives <code>C_S</code> shown above.
           </p>
-          <p>
-            The model assumes complete diffusion in both phases, so every part of the solid is
-            at the same composition at any instant. It is the equilibrium reference limit — real
-            castings often show coring because solid-state diffusion is too slow.
+          <p id="derivationP2">
+            The equilibrium model assumes complete diffusion in both phases, so every part of the
+            solid is at the same composition at any instant. It is the equilibrium reference limit —
+            real castings often show coring because solid-state diffusion is too slow.
           </p>
         </details>
       </section>
 
-      <p class="footnote">
+      <p class="footnote" id="footnote">
         <strong>How to read it:</strong> for k &lt; 1 the growing solid rejects solute into the
         liquid, so both curves rise as f<sub>s</sub> → 1. At f<sub>s</sub> = 0 the first solid has
         C<sub>S</sub> = kC<sub>0</sub>; at f<sub>s</sub> = 1 the solid reaches C<sub>0</sub> and the
@@ -852,7 +942,7 @@
   </div>
 
   <div class="footer">
-    <span>Interactive teaching model · lever rule / equilibrium solidification</span>
+    <span>Interactive teaching model · lever rule + Scheil–Gulliver</span>
     <span>Defaults: k = 0.30, C₀ = 1.0 wt.% (illustrative values)</span>
   </div>
 </div>
@@ -866,6 +956,7 @@
     fs: 0.5,
     k: 0.3,
     c0: 1.0,
+    model: "equilibrium",
   };
 
   const els = {
@@ -875,30 +966,89 @@
     c0Input: document.getElementById("c0Input"),
     csValue: document.getElementById("csValue"),
     clValue: document.getElementById("clValue"),
+    csAvgValue: document.getElementById("csAvgValue"),
+    csLabel: document.getElementById("csLabel"),
+    avgLine: document.getElementById("avgLine"),
+    balanceBox: document.getElementById("balanceBox"),
     balanceValue: document.getElementById("balanceValue"),
+    balanceMark: document.getElementById("balanceMark"),
     solidPct: document.getElementById("solidPct"),
     liquidPct: document.getElementById("liquidPct"),
     plot: document.getElementById("plot"),
     spatialPlot: document.getElementById("spatialPlot"),
+    modelBlurb: document.getElementById("modelBlurb"),
+    graphSubtitle: document.getElementById("graphSubtitle"),
+    spatialSubtitle: document.getElementById("spatialSubtitle"),
+    equationLabel: document.getElementById("equationLabel"),
+    formula: document.getElementById("formula"),
+    equationNote: document.getElementById("equationNote"),
+    derivationP1: document.getElementById("derivationP1"),
+    derivationP2: document.getElementById("derivationP2"),
+    footnote: document.getElementById("footnote"),
   };
 
+  const modelButtons = Array.from(document.querySelectorAll(".model-btn"));
+
   // ── Model ──────────────────────────────────────────────────
-  // Lever rule: CS = k*C0 / (1 - (1-k)*fs), CL = C0 / (1 - (1-k)*fs)
+  // Equilibrium (lever rule):
+  //   CS = k*C0 / (1 - (1-k)*fs),  CL = C0 / (1 - (1-k)*fs)
+  // Scheil-Gulliver:
+  //   CS = k*C0*(1-fs)^(k-1),     CL = C0*(1-fs)^(k-1)
+  function isScheil() {
+    return state.model === "scheil";
+  }
+
   function denominator(fs) {
     return 1 - (1 - state.k) * fs;
   }
 
   function cs(fs) {
+    if (isScheil()) {
+      return state.k * state.c0 * Math.pow(1 - fs, state.k - 1);
+    }
     return (state.k * state.c0) / denominator(fs);
   }
 
   function cl(fs) {
+    if (isScheil()) {
+      return state.c0 * Math.pow(1 - fs, state.k - 1);
+    }
     return state.c0 / denominator(fs);
+  }
+
+  // Average composition of all solid formed so far. This is the interface
+  // composition for equilibrium, but not for Scheil (the solid is cored).
+  function csAvg(fs) {
+    if (!isScheil()) return cs(fs);
+    if (fs < 1e-9) return state.k * state.c0;
+    return state.c0 * (1 - Math.pow(1 - fs, state.k)) / fs;
+  }
+
+  // Normalized y-axis limit for the plotted curves.
+  function yMaxNorm() {
+    if (!isScheil()) {
+      return Math.max(state.k, 1 / state.k) * 1.06;
+    }
+    if (state.k < 1) {
+      // Scheil diverges at fs = 1 for k < 1; cap the view at the value
+      // reached around fs = 0.95 so the early curve stays readable.
+      return Math.max(1, Math.pow(0.05, state.k - 1)) * 1.06;
+    }
+    return Math.max(1, state.k) * 1.06;
+  }
+
+  // Composition of the solid deposited at position x along the bar.
+  function solidProfileNorm(x) {
+    if (isScheil()) {
+      return state.k * Math.pow(1 - x, state.k - 1);
+    }
+    return cs(state.fs) / state.c0;
   }
 
   // ── Formatting ─────────────────────────────────────────────
   function fmt(value, digits = 3) {
-    if (!Number.isFinite(value)) return "—";
+    if (value === Infinity) return "\u221E";
+    if (!Number.isFinite(value)) return "\u2014";
     return value.toFixed(digits);
   }
 
@@ -952,8 +1102,18 @@
     const plot = els.plot;
     plot.textContent = "";
 
-    const yMax = Math.max(1 / state.k, 1) * 1.06;
+    const yMax = yMaxNorm();
     const yTicks = ticksFor(yMax, 6);
+
+    // Clip curves to the plotting rectangle so Scheil's divergence at
+    // fs -> 1 cannot draw over the axes or labels.
+    const defs = svgEl("defs", {});
+    const dataClip = svgEl("clipPath", { id: "mainDataClip" });
+    dataClip.appendChild(svgEl("rect", {
+      x: M.left, y: M.top, width: plotW, height: plotH,
+    }));
+    defs.appendChild(dataClip);
+    plot.appendChild(defs);
 
     // Background bands (solid domain tint / liquid domain tint)
     plot.appendChild(svgEl("rect", {
@@ -1018,59 +1178,88 @@
     yTitle.textContent = "Concentration, C / C\u2080";
     plot.appendChild(yTitle);
 
-    // Curves (sampled densely; fs ∈ [0,1] is finite for k > 0)
-    const N = 500;
+    // Curves (sampled densely). Scheil at k < 1 is infinite at fs = 1,
+    // so non-finite samples are skipped and the curve is clipped.
+    const N = 600;
     const csPoints = [];
     const clPoints = [];
     for (let i = 0; i <= N; i++) {
       const fs = i / N;
-      const d = denominator(fs);
-      csPoints.push(`${xScale(fs).toFixed(2)},${yScale((state.k / d), yMax).toFixed(2)}`);
-      clPoints.push(`${xScale(fs).toFixed(2)},${yScale((1 / d), yMax).toFixed(2)}`);
+      const csN = cs(fs) / state.c0;
+      const clN = cl(fs) / state.c0;
+      if (Number.isFinite(csN)) {
+        csPoints.push(`${xScale(fs).toFixed(2)},${yScale(csN, yMax).toFixed(2)}`);
+      }
+      if (Number.isFinite(clN)) {
+        clPoints.push(`${xScale(fs).toFixed(2)},${yScale(clN, yMax).toFixed(2)}`);
+      }
     }
 
-    plot.appendChild(svgEl("polyline", {
+    const dataGroup = svgEl("g", { "clip-path": "url(#mainDataClip)" });
+    dataGroup.appendChild(svgEl("polyline", {
       points: clPoints.join(" "),
       class: "curve curve-liquid",
     }));
-    plot.appendChild(svgEl("polyline", {
+    dataGroup.appendChild(svgEl("polyline", {
       points: csPoints.join(" "),
       class: "curve curve-solid",
     }));
 
     // Current-position guide
-    plot.appendChild(svgEl("line", {
+    dataGroup.appendChild(svgEl("line", {
       x1: xScale(state.fs), y1: M.top,
       x2: xScale(state.fs), y2: M.top + plotH,
       class: "guide",
     }));
+    plot.appendChild(dataGroup);
+
+    // Singular Scheil endpoint note
+    if (isScheil() && state.k < 1) {
+      const note = svgEl("text", {
+        x: M.left + plotW - 8, y: M.top + 17,
+        "text-anchor": "end", class: "tick-text", fill: "#c2410c",
+      });
+      note.textContent = "C \u2192 \u221E as f\u209B \u2192 1";
+      plot.appendChild(note);
+    }
 
     // Current markers + floating tag
     const xNow = xScale(state.fs);
-    const ySolid = yScale(cs(state.fs) / state.c0, yMax);
-    const yLiquid = yScale(cl(state.fs) / state.c0, yMax);
+    const csNormNow = cs(state.fs) / state.c0;
+    const clNormNow = cl(state.fs) / state.c0;
+    const ySolid = Number.isFinite(csNormNow) ? yScale(csNormNow, yMax) : null;
+    const yLiquid = Number.isFinite(clNormNow) ? yScale(clNormNow, yMax) : null;
 
-    plot.appendChild(svgEl("circle", {
-      cx: xNow, cy: yLiquid, r: 7,
-      class: "point-ring", "stroke-width": 2.5, stroke: "#c2410c",
-    }));
-    plot.appendChild(svgEl("circle", {
-      cx: xNow, cy: yLiquid, r: 3.2, class: "point-liquid",
-    }));
+    if (yLiquid !== null) {
+      const g = svgEl("g", { "clip-path": "url(#mainDataClip)" });
+      g.appendChild(svgEl("circle", {
+        cx: xNow, cy: yLiquid, r: 7,
+        class: "point-ring", "stroke-width": 2.5, stroke: "#c2410c",
+      }));
+      g.appendChild(svgEl("circle", {
+        cx: xNow, cy: yLiquid, r: 3.2, class: "point-liquid",
+      }));
+      plot.appendChild(g);
+    }
 
-    plot.appendChild(svgEl("circle", {
-      cx: xNow, cy: ySolid, r: 7,
-      class: "point-ring", "stroke-width": 2.5, stroke: "#0f766e",
-    }));
-    plot.appendChild(svgEl("circle", {
-      cx: xNow, cy: ySolid, r: 3.2, class: "point-solid",
-    }));
+    if (ySolid !== null) {
+      const g = svgEl("g", { "clip-path": "url(#mainDataClip)" });
+      g.appendChild(svgEl("circle", {
+        cx: xNow, cy: ySolid, r: 7,
+        class: "point-ring", "stroke-width": 2.5, stroke: "#0f766e",
+      }));
+      g.appendChild(svgEl("circle", {
+        cx: xNow, cy: ySolid, r: 3.2, class: "point-solid",
+      }));
+      plot.appendChild(g);
+    }
 
     const tagW = 92;
     const tagH = 22;
     let tagX = xNow + 12;
     if (tagX + tagW > M.left + plotW) tagX = xNow - tagW - 12;
-    const tagY = Math.max(M.top + 4, Math.min(ySolid - tagH - 8, M.top + plotH - tagH - 4));
+    const anchorY = ySolid === null ? M.top + 8 : ySolid;
+    const tagY = Math.max(M.top + 4, Math.min(anchorY - tagH - 8, M.top + plotH - tagH - 4));
 
     const tagGroup = svgEl("g", {});
     tagGroup.appendChild(svgEl("rect", {
@@ -1110,15 +1299,15 @@
     const plot = els.spatialPlot;
     plot.textContent = "";
 
-    const yMax = Math.max(1 / state.k, 1) * 1.06;
+    const yMax = yMaxNorm();
     const yTicks = ticksFor(yMax, 5);
     const x0 = SM.left;
     const x1 = SM.left + sPlotW;
     const xf = sx(state.fs);
     const csNorm = cs(state.fs) / state.c0;
     const clNorm = cl(state.fs) / state.c0;
-    const ySolid = sy(csNorm, yMax);
-    const yLiquid = sy(clNorm, yMax);
+    const ySolid = Number.isFinite(csNorm) ? sy(csNorm, yMax) : null;
+    const yLiquid = Number.isFinite(clNorm) ? sy(clNorm, yMax) : null;
 
     // Phase tints behind the profile
     plot.appendChild(svgEl("rect", {
@@ -1192,6 +1381,11 @@
       x: x0, y: barY, width: sPlotW, height: barH, rx: 8,
     }));
     defs.appendChild(clip);
+    const profileClip = svgEl("clipPath", { id: "spatialDataClip" });
+    profileClip.appendChild(svgEl("rect", {
+      x: x0, y: sAxisTop, width: sPlotW, height: sPlotH,
+    }));
+    defs.appendChild(profileClip);
     plot.appendChild(defs);
 
     plot.appendChild(svgEl("rect", {
@@ -1244,54 +1438,88 @@
     }));
 
     // ── Composition profile ─────────────────────────────────
-    // Equilibrium: each phase is uniform, so the profile is a step.
+    // Equilibrium: the solid is uniform, so the profile is a flat line.
+    // Scheil: each deposited solid layer keeps its composition, producing
+    // a cored profile CS(x) = k*C0*(1-x)^(k-1).
+    const profileGroup = svgEl("g", { "clip-path": "url(#spatialDataClip)" });
+
     if (state.fs > 0.001) {
-      plot.appendChild(svgEl("line", {
-        x1: x0, y1: ySolid, x2: xf, y2: ySolid,
-        class: "curve", stroke: "#0f766e", "stroke-width": 3.6,
-      }));
+      const M = 180;
+      const solidPoints = [];
+      for (let i = 0; i <= M; i++) {
+        const x = state.fs * (i / M);
+        const value = solidProfileNorm(x);
+        if (Number.isFinite(value)) {
+          solidPoints.push(`${sx(x).toFixed(2)},${sy(value, yMax).toFixed(2)}`);
+        }
+      }
+      if (solidPoints.length > 1) {
+        profileGroup.appendChild(svgEl("polyline", {
+          points: solidPoints.join(" "),
+          class: "curve", stroke: "#0f766e", "stroke-width": 3.4,
+        }));
+      }
     }
-    if (state.fs < 0.999) {
-      plot.appendChild(svgEl("line", {
+
+    if (state.fs < 0.999 && yLiquid !== null) {
+      profileGroup.appendChild(svgEl("line", {
         x1: xf, y1: yLiquid, x2: x1, y2: yLiquid,
         class: "curve", stroke: "#c2410c", "stroke-width": 3,
         "stroke-dasharray": "7 6",
       }));
     }
 
-    // Jump at the interface
-    plot.appendChild(svgEl("line", {
-      x1: xf, y1: ySolid, x2: xf, y2: yLiquid,
-      stroke: "#8796aa", "stroke-width": 1.3, "stroke-dasharray": "3 4",
-    }));
+    // Jump at the interface (only when both sides are finite)
+    if (ySolid !== null && yLiquid !== null) {
+      profileGroup.appendChild(svgEl("line", {
+        x1: xf, y1: ySolid, x2: xf, y2: yLiquid,
+        stroke: "#8796aa", "stroke-width": 1.3, "stroke-dasharray": "3 4",
+      }));
+    }
 
-    plot.appendChild(svgEl("circle", {
-      cx: xf, cy: ySolid, r: 6.5,
-      class: "point-ring", "stroke-width": 2.5, stroke: "#0f766e",
-    }));
-    plot.appendChild(svgEl("circle", {
-      cx: xf, cy: ySolid, r: 3, class: "point-solid",
-    }));
-    plot.appendChild(svgEl("circle", {
-      cx: xf, cy: yLiquid, r: 6.5,
-      class: "point-ring", "stroke-width": 2.5, stroke: "#c2410c",
-    }));
-    plot.appendChild(svgEl("circle", {
-      cx: xf, cy: yLiquid, r: 3, class: "point-liquid",
-    }));
+    if (ySolid !== null) {
+      profileGroup.appendChild(svgEl("circle", {
+        cx: xf, cy: ySolid, r: 6.5,
+        class: "point-ring", "stroke-width": 2.5, stroke: "#0f766e",
+      }));
+      profileGroup.appendChild(svgEl("circle", {
+        cx: xf, cy: ySolid, r: 3, class: "point-solid",
+      }));
+    }
 
-    // Plateau labels, hidden when a phase segment is too short
+    if (yLiquid !== null) {
+      profileGroup.appendChild(svgEl("circle", {
+        cx: xf, cy: yLiquid, r: 6.5,
+        class: "point-ring", "stroke-width": 2.5, stroke: "#c2410c",
+      }));
+      profileGroup.appendChild(svgEl("circle", {
+        cx: xf, cy: yLiquid, r: 3, class: "point-liquid",
+      }));
+    }
+    plot.appendChild(profileGroup);
+
+    // Phase labels, hidden when a segment is too short
     if (state.fs * sPlotW > 34) {
+      const xMid = state.fs / 2;
+      const midValue = solidProfileNorm(xMid);
+      const yMid = Number.isFinite(midValue) ? sy(midValue, yMax) : sAxisTop + 13;
       const solidLabel = svgEl("text", {
-        x: x0 + (state.fs * sPlotW) / 2, y: Math.max(sAxisTop + 13, ySolid - 9),
+        x: x0 + (state.fs * sPlotW) / 2,
+        y: Math.max(sAxisTop + 13, yMid - 9),
         "text-anchor": "middle", class: "line-label", fill: "#0f766e",
       });
-      solidLabel.textContent = "C\u209B";
+      solidLabel.textContent = isScheil() ? "C\u209B(x)" : "C\u209B";
       plot.appendChild(solidLabel);
     }
-    if ((1 - state.fs) * sPlotW > 34 && Math.abs(ySolid - yLiquid) > 15) {
+    if (
+      (1 - state.fs) * sPlotW > 34 &&
+      yLiquid !== null &&
+      ySolid !== null &&
+      Math.abs(ySolid - yLiquid) > 15
+    ) {
       const liquidLabel = svgEl("text", {
-        x: xf + ((1 - state.fs) * sPlotW) / 2, y: Math.max(sAxisTop + 13, yLiquid - 9),
+        x: xf + ((1 - state.fs) * sPlotW) / 2,
+        y: Math.max(sAxisTop + 13, yLiquid - 9),
         "text-anchor": "middle", class: "line-label", fill: "#c2410c",
       });
       liquidLabel.textContent = "C\u2097";
@@ -1300,8 +1528,80 @@
   }
 
   // ── UI update ──────────────────────────────────────────────
+  let lastModel = null;
+
+  function syncModelUI() {
+    if (state.model === lastModel) return;
+    lastModel = state.model;
+
+    if (isScheil()) {
+      els.modelBlurb.textContent =
+        "No solid diffusion; liquid perfectly mixed. The solid keeps a cored profile.";
+      els.equationLabel.textContent = "Scheil\u2013Gulliver result";
+      els.formula.innerHTML =
+        'C<sub>S</sub> = k C<sub>0</sub> (1 \u2212 f<sub>s</sub>)<sup>k\u22121</sup>';
+      els.equationNote.innerHTML =
+        'The liquid composition is <em>C<sub>L</sub> = C<sub>0</sub> (1 \u2212 f<sub>s</sub>)<sup>k\u22121</sup></em>. ' +
+        'For k &lt; 1 it diverges as f<sub>s</sub> \u2192 1.';
+      els.graphSubtitle.innerHTML =
+        'Scheil\u2013Gulliver: no solid diffusion, perfectly mixed liquid';
+      els.spatialSubtitle.textContent =
+        "Cored solid profile; the remaining liquid stays uniform";
+      els.csLabel.innerHTML = 'Solid (interface), C<sub>S</sub>*';
+      els.avgLine.hidden = false;
+      els.derivationP1.innerHTML =
+        'As solid forms, solute is rejected into a perfectly mixed liquid. ' +
+        'With no solid-state diffusion, the new solid freezes with composition ' +
+        '<code>C<sub>S</sub>* = k C<sub>L</sub></code> and never re-equilibrates. ' +
+        'Integrating the solute balance gives the Scheil equation.';
+      els.derivationP2.innerHTML =
+        'The result is a cored solid: the first solid is solute-lean (kC<sub>0</sub>) ' +
+        'and later solid is richer for k &lt; 1. The average solid composition is ' +
+        '<code>C<sub>S,avg</sub> = C<sub>0</sub>[1 \u2212 (1 \u2212 f<sub>s</sub>)<sup>k</sup>]/f<sub>s</sub></code>.';
+      els.footnote.innerHTML =
+        '<strong>How to read it:</strong> the solid line is the composition of the solid ' +
+        'forming at the interface; the along-bar chart shows the full cored profile. ' +
+        'For k &lt; 1, C<sub>L</sub> \u2192 \u221E as f<sub>s</sub> \u2192 1 (the last liquid), so the ' +
+        'plot is capped and the readout shows \u221E exactly at f<sub>s</sub> = 1. ' +
+        'For k &gt; 1 the curves fall toward zero as the liquid is depleted.';
+    } else {
+      els.modelBlurb.textContent =
+        "Complete diffusion in both phases. The solid remains uniform at every stage.";
+      els.equationLabel.textContent = "Lever-rule result";
+      els.formula.innerHTML =
+        'C<sub>S</sub> = <span class="frac"><span class="num">k C<sub>0</sub></span>' +
+        '<span class="den">1 \u2212 (1 \u2212 k) f<sub>s</sub></span></span>';
+      els.equationNote.innerHTML =
+        'At equilibrium the liquid composition is ' +
+        '<em>C<sub>L</sub> = C<sub>0</sub> / [1 \u2212 (1 \u2212 k)f<sub>s</sub>]</em>.';
+      els.graphSubtitle.innerHTML =
+        'Equilibrium: normalized concentration <em>C / C<sub>0</sub></em> as freezing progresses';
+      els.spatialSubtitle.textContent =
+        "Uniform solid and liquid compositions at the current interface position";
+      els.csLabel.innerHTML = 'Solid, C<sub>S</sub>';
+      els.avgLine.hidden = true;
+      els.derivationP1.innerHTML =
+        'Solute is conserved in the closed volume: ' +
+        '<code>C\u2080 = f_s C_S + (1 \u2212 f_s) C_L</code>. ' +
+        'Local equilibrium at the solid\u2013liquid interface gives ' +
+        '<code>C_S = k C_L</code>. Substituting and solving for <code>C_L</code> gives the ' +
+        'lever rule, and multiplying by <code>k</code> gives <code>C_S</code> shown above.';
+      els.derivationP2.innerHTML =
+        'The equilibrium model assumes complete diffusion in both phases, so every part of the ' +
+        'solid is at the same composition at any instant. It is the equilibrium reference limit \u2014 ' +
+        'real castings often show coring because solid-state diffusion is too slow.';
+      els.footnote.innerHTML =
+        '<strong>How to read it:</strong> for k &lt; 1 the growing solid rejects solute into the ' +
+        'liquid, so both curves rise as f<sub>s</sub> \u2192 1. At f<sub>s</sub> = 0 the first solid has ' +
+        'C<sub>S</sub> = kC<sub>0</sub>; at f<sub>s</sub> = 1 the solid reaches C<sub>0</sub> and the ' +
+        'last liquid reaches C<sub>0</sub>/k. Unlike Scheil, the equilibrium result stays finite.';
+    }
+  }
+
   function update() {
-    const { fs, k, c0 } = state;
+    const { fs } = state;
+
+    syncModelUI();
 
     // Slider fill + labels
     els.fsSlider.style.setProperty("--pct", `${fs * 100}%`);
@@ -1311,12 +1611,15 @@
     // Numbers
     const csNow = cs(fs);
     const clNow = cl(fs);
-    const solids = fs * csNow;
-    const liquids = (1 - fs) * clNow;
+    const avgNow = csAvg(fs);
+    const singular = isScheil() && state.k < 1 && fs > 0.999999;
 
     els.csValue.textContent = fmt(csNow);
     els.clValue.textContent = fmt(clNow);
-    els.balanceValue.textContent = fmt(solids + liquids);
+    els.csAvgValue.textContent = fmt(avgNow);
+    els.balanceValue.textContent = singular ? "\u2014" : fmt(fs * avgNow + (1 - fs) * clNow);
+    els.balanceMark.innerHTML = singular ? "singular at f\u209B = 1" : "= C<sub>0</sub>";
+    els.balanceBox.classList.toggle("warn", singular);
 
     // Bar percentages
     const pct = fs * 100;
@@ -1338,21 +1641,34 @@
     setState({ fs: Number(event.target.value) });
   });
 
+  modelButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.model === state.model) return;
+      state.model = button.dataset.model;
+      modelButtons.forEach((btn) => {
+        const active = btn.dataset.model === state.model;
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-pressed", String(active));
+      });
+      update();
+    });
+  });
+
   els.kInput.addEventListener("input", (event) => {
     const value = Number(event.target.value);
-    if (Number.isFinite(value) && value >= 0.05 && value <= 1) {
+    if (Number.isFinite(value) && value > 0 && value <= 100) {
       setState({ k: value });
     }
   });
 
   els.kInput.addEventListener("blur", (event) => {
     const value = Number(event.target.value);
-    if (!Number.isFinite(value) || value < 0.05) {
-      event.target.value = "0.05";
-      setState({ k: 0.05 });
-    } else if (value > 1) {
-      event.target.value = "1";
-      setState({ k: 1 });
+    if (!Number.isFinite(value) || value <= 0) {
+      event.target.value = "0.30";
+      setState({ k: 0.3 });
+    } else if (value > 100) {
+      event.target.value = "100";
+      setState({ k: 100 });
     }
   });
 
