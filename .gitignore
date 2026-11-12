@@ -1,0 +1,11 @@
+# MATLAB autosaves and temporary files
+*.asv
+*.m~
+*.autosave
+
+# OS clutter
+.DS_Store
+Thumbs.db
+
+# Local previews / scratch
+node_modules/
