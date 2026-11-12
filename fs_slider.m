@@ -169,7 +169,8 @@ eq.Layout.Row = 7; eq.Layout.Column = [1 2];
 eq.Text = {'C_S = k C_0 / [1 - (1-k) f_s]', ...
            'C_L =     C_0 / [1 - (1-k) f_s]'};
 eq.FontName = 'Consolas';
-eq.FontSize = 12;
+eq.FontSize = 11;
+eq.Interpreter = 'tex';
 eq.HorizontalAlignment = 'center';
 eq.BackgroundColor = [0.96 0.97 0.99];
 
@@ -710,7 +711,8 @@ wtCheck.ValueChangedFcn   = @(src,event) updateDisplay();
         if isTiller()
             head.Text = 'SOLUTE REDISTRIBUTION  |  TILLER ET AL.';
             eq.Text = {'C_S(x) = C_0[k + (1-k)(1 - e^{-k Pe x})]', ...
-                       'C_L(z) = C_0[1 + (1-k)/k e^{-Pe z}],  delta/L = 1/Pe'};
+                       'C_L(z) = C_0[1 + (1-k)/k e^{-Pe z}]', ...
+                       '\delta/L = 1/Pe'};
             note.Text = ['No solid diffusion (D_S = 0), no liquid mixing. ' ...
                 'Initial transient -> steady C_S = C_0 -> final transient.'];
             hCS.DisplayName = 'Solid (interface), C_S';
@@ -737,8 +739,9 @@ wtCheck.ValueChangedFcn   = @(src,event) updateDisplay();
             aE = alphaEff();
             bCK = betaCK(aE);
             head.Text = 'SOLUTE REDISTRIBUTION  |  CLYNE-KURZ';
-            eq.Text = {'C_L/C_0 = [1 - (1-beta k) f_s]^{(k-1)/(1-beta k)}', ...
-                       'beta = 2a(1 - e^{-1/a}) - e^{-1/(2a)}'};
+            eq.Text = {'C_L/C_0 = [1 - (1-\beta k) f_s]^{(k-1)/(1-\beta k)}', ...
+                       '\beta = 2\alpha(1 - e^{-1/\alpha}) - e^{-1/(2\alpha)}', ...
+                       '\alpha = 4 D_s t_f / \lambda_2^2'};
             if wtCheck.Value
                 note.Text = sprintf(['Finite back diffusion; mixed liquid. ' ...
                     'alpha = %.4g, alpha+ = %.4g, beta = %.4g (Won-Thomas).'], ...
@@ -767,8 +770,8 @@ wtCheck.ValueChangedFcn   = @(src,event) updateDisplay();
                 };
         elseif isScheil()
             head.Text = 'SOLUTE REDISTRIBUTION  |  SCHEIL-GULLIVER';
-            eq.Text = {'C_S = k C_0 (1 - f_s)^(k-1)', ...
-                       'C_L =     C_0 (1 - f_s)^(k-1)'};
+            eq.Text = {'C_S = k C_0 (1 - f_s)^{k-1}', ...
+                       'C_L =     C_0 (1 - f_s)^{k-1}'};
             note.Text = ['No solid diffusion (D_S = 0), perfectly mixed ' ...
                 'liquid (D_L -> inf), local equilibrium k = C_S/C_L.'];
             hCS.DisplayName = 'Solid (interface), C_S';
