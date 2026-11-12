@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Solute Redistribution · Equilibrium &amp; Scheil–Gulliver</title>
+<title>Solute Redistribution · Four Solidification Models</title>
 <style>
   :root {
     --bg: #eef2f7;
@@ -315,6 +315,55 @@
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.13);
+  }
+
+  .param-panel {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+
+  .param-panel[hidden] { display: none; }
+
+  .param-panel .mini-grid { gap: 11px; }
+
+  .param-panel .field label { font-size: 11.5px; }
+
+  .param-panel .field input[type="number"] {
+    height: 38px;
+    font-size: 13px;
+  }
+
+  .param-hint {
+    margin: 11px 0 0;
+    color: var(--muted);
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+
+  .param-hint code {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    background: #f1f5fa;
+    border-radius: 4px;
+    padding: 1px 4px;
+  }
+
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 650;
+    cursor: pointer;
+  }
+
+  .check-row input {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--solid);
   }
 
   .equation {
@@ -678,6 +727,75 @@
 
   .footnote strong { color: var(--ink); }
 
+  .stage-label {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 10.5px;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+    fill: #7c6a4a;
+    pointer-events: none;
+  }
+
+  .comparison-card {
+    margin-top: 18px;
+    padding: 22px 24px 20px;
+  }
+
+  .comparison-card h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+  }
+
+  .comparison-card p {
+    margin: 0 0 14px;
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+
+  .table-wrap { overflow-x: auto; }
+
+  table.compare {
+    width: 100%;
+    min-width: 720px;
+    border-collapse: collapse;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  table.compare th,
+  table.compare td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  table.compare thead th {
+    color: var(--muted);
+    font-size: 10.5px;
+    font-weight: 750;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: #f8fafc;
+    white-space: nowrap;
+  }
+
+  table.compare tbody th {
+    color: var(--ink);
+    font-weight: 650;
+    white-space: nowrap;
+  }
+
+  table.compare td { color: var(--muted); }
+
+  table.compare td strong { color: var(--ink); }
+
+  table.compare .eq-col { color: #0f766e; }
+  table.compare .scheil-col { color: #b45309; }
+  table.compare .tiller-col { color: #1d4ed8; }
+  table.compare .ck-col { color: #7c3aed; }
+
   details.derivation {
     margin: 18px 4px 0;
     border-top: 1px solid var(--line);
@@ -762,10 +880,11 @@
       <h1>Solute redistribution<br />during solidification</h1>
       <p class="subtitle">
         Move the solid-fraction slider to watch how the solid and liquid compositions evolve.
-        Compare the equilibrium lever rule with the Scheil&ndash;Gulliver no-solid-diffusion limit.
+        Compare equilibrium, Scheil&ndash;Gulliver, diffusion-controlled Tiller growth, and the
+        Clyne&ndash;Kurz back-diffusion model.
       </p>
     </div>
-    <div class="chip"><span class="dot"></span> Lever rule · Scheil–Gulliver</div>
+    <div class="chip"><span class="dot"></span> 4 models · equilibrium to back diffusion</div>
   </header>
 
   <div class="layout">
@@ -777,6 +896,8 @@
         <div class="model-switch" role="group" aria-label="Solidification model">
           <button type="button" class="model-btn active" data-model="equilibrium" aria-pressed="true">Equilibrium</button>
           <button type="button" class="model-btn" data-model="scheil" aria-pressed="false">Scheil–Gulliver</button>
+          <button type="button" class="model-btn" data-model="tiller" aria-pressed="false">Tiller et al.</button>
+          <button type="button" class="model-btn" data-model="clyne-kurz" aria-pressed="false">Clyne–Kurz</button>
         </div>
         <p class="model-blurb" id="modelBlurb">
           Complete diffusion in both phases. The solid remains uniform at every stage.
@@ -815,6 +936,43 @@
           </div>
         </div>
 
+        <div class="param-panel" id="tillerPanel" hidden>
+          <div class="field">
+            <label for="peInput">Péclet number, Pe = vL / D<sub>L</sub></label>
+            <input id="peInput" type="number" min="1" max="200" step="1" value="20" />
+          </div>
+          <p class="param-hint" id="peHint">
+            Boundary layer δ/L = 1/Pe. The initial transient is set by 1/(kPe);
+            use Pe ≥ 1 for a thin boundary layer.
+          </p>
+        </div>
+
+        <div class="param-panel" id="ckPanel" hidden>
+          <div class="mini-grid">
+            <div class="field">
+              <label for="dsInput">D<sub>s</sub> <span>(×10⁻¹² m²/s)</span></label>
+              <input id="dsInput" type="number" min="0" max="1000" step="0.01" value="0.1" />
+            </div>
+            <div class="field">
+              <label for="tfInput">t<sub>f</sub> <span>(s)</span></label>
+              <input id="tfInput" type="number" min="0" max="100000" step="1" value="100" />
+            </div>
+            <div class="field">
+              <label for="lambdaInput">λ<sub>2</sub> <span>(µm)</span></label>
+              <input id="lambdaInput" type="number" min="0.01" max="10000" step="0.1" value="20" />
+            </div>
+            <div class="field">
+              <label for="alphaCInput">α<sub>C</sub> <span>(W–T)</span></label>
+              <input id="alphaCInput" type="number" min="0" max="10" step="0.01" value="0.10" />
+            </div>
+          </div>
+          <label class="check-row" for="wtToggle">
+            <input id="wtToggle" type="checkbox" />
+            Won–Thomas coarsening correction: α⁺ = 2(α + α<sub>C</sub>)
+          </label>
+          <p class="param-hint" id="ckHint"></p>
+        </div>
+
         <div class="equation">
           <span class="equation-label" id="equationLabel">Lever-rule result</span>
           <div class="formula" id="formula">
@@ -843,7 +1001,7 @@
             <div class="stat-value"><span id="csValue">0.462</span><small>wt.%</small></div>
           </div>
           <div class="stat liquid">
-            <div class="stat-label"><span class="swatch"></span> Liquid, C<sub>L</sub></div>
+            <div class="stat-label"><span class="swatch"></span> <span id="clLabel">Liquid, C<sub>L</sub></span></div>
             <div class="stat-value"><span id="clValue">1.538</span><small>wt.%</small></div>
           </div>
         </div>
@@ -853,8 +1011,13 @@
           <span><strong id="csAvgValue">—</strong> <small>wt.%</small></span>
         </div>
 
+        <div class="avg-line" id="liqAvgLine" hidden>
+          <span>Average liquid, C<sub>L,avg</sub></span>
+          <span><strong id="clAvgValue">—</strong> <small>wt.%</small></span>
+        </div>
+
         <div class="balance" id="balanceBox">
-          <span>Mass balance <em>f</em><sub>s</sub>C<sub>S,avg</sub> + (1−<em>f</em><sub>s</sub>)C<sub>L</sub></span>
+          <span>Mass balance <em>f</em><sub>s</sub>C<sub>S,avg</sub> + (1−<em>f</em><sub>s</sub>)C<sub>L,avg</sub></span>
           <span id="balanceRight"><strong id="balanceValue">1.000</strong> <span class="ok" id="balanceMark">= C<sub>0</sub></span></span>
         </div>
       </section>
@@ -938,11 +1101,80 @@
         last liquid reaches C<sub>0</sub>/k. The equilibrium model is an ideal limit and does not
         predict the terminal segregation singularity of the Scheil model.
       </p>
+
+      <section class="card comparison-card" aria-label="Solidification model comparison">
+        <h3>Solidification model comparison</h3>
+        <p>Same alloy, different assumptions about diffusion and mixing. The four models bracket the behaviour seen in real castings.</p>
+        <div class="table-wrap">
+          <table class="compare">
+            <thead>
+              <tr>
+                <th scope="col">Feature</th>
+                <th scope="col" class="eq-col">Equilibrium (lever)</th>
+                <th scope="col" class="scheil-col">Scheil–Gulliver</th>
+                <th scope="col" class="tiller-col">Tiller et al.</th>
+                <th scope="col" class="ck-col">Clyne–Kurz</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Solid diffusion, D<sub>S</sub></th>
+                <td>Infinite (∞)</td>
+                <td>Zero (0)</td>
+                <td>Zero (0)</td>
+                <td>Finite; back diffusion included</td>
+              </tr>
+              <tr>
+                <th scope="row">Liquid mixing, D<sub>L</sub></th>
+                <td>Infinite (∞)</td>
+                <td>Infinite (∞)</td>
+                <td>Diffusion only; no convection</td>
+                <td>Infinite; liquid homogenized</td>
+              </tr>
+              <tr>
+                <th scope="row">Main solid composition</th>
+                <td>Uniform at C<sub>0</sub></td>
+                <td>Continuously varying (cored)</td>
+                <td>Initial transient → C<sub>0</sub> plateau → final spike</td>
+                <td>Varies; retained segregation reduced by back diffusion</td>
+              </tr>
+              <tr>
+                <th scope="row">Liquid composition</th>
+                <td>Uniform</td>
+                <td>Uniform</td>
+                <td>Boundary layer C<sub>L</sub>(z)</td>
+                <td>Uniform</td>
+              </tr>
+              <tr>
+                <th scope="row">Key parameter</th>
+                <td>k</td>
+                <td>k</td>
+                <td>Pe = vL / D<sub>L</sub></td>
+                <td>α = 4D<sub>s</sub>t<sub>f</sub>/λ<sub>2</sub>², β<sub>CK</sub></td>
+              </tr>
+              <tr>
+                <th scope="row">Limiting cases</th>
+                <td>Complete diffusion in both phases</td>
+                <td>β = 0; no back diffusion</td>
+                <td>Pe → ∞; very thin boundary layer</td>
+                <td>β → 0 gives Scheil; β → 1 gives lever rule</td>
+              </tr>
+              <tr>
+                <th scope="row">Interface stability</th>
+                <td>Planar</td>
+                <td>Planar (assumed)</td>
+                <td>Prone to constitutional supercooling (cellular/dendritic)</td>
+                <td>Planar / local equilibrium assumed</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </main>
   </div>
 
   <div class="footer">
-    <span>Interactive teaching model · lever rule + Scheil–Gulliver</span>
+    <span>Interactive teaching model · equilibrium, Scheil–Gulliver, Tiller, Clyne–Kurz</span>
     <span>Defaults: k = 0.30, C₀ = 1.0 wt.% (illustrative values)</span>
   </div>
 </div>
@@ -957,6 +1189,12 @@
     k: 0.3,
     c0: 1.0,
     model: "equilibrium",
+    pe: 20,
+    ds: 1e-13,
+    tf: 100,
+    lambda2: 20e-6,
+    alphaC: 0.1,
+    wonThomas: false,
   };
 
   const els = {
@@ -967,8 +1205,21 @@
     csValue: document.getElementById("csValue"),
     clValue: document.getElementById("clValue"),
     csAvgValue: document.getElementById("csAvgValue"),
+    clAvgValue: document.getElementById("clAvgValue"),
     csLabel: document.getElementById("csLabel"),
+    clLabel: document.getElementById("clLabel"),
     avgLine: document.getElementById("avgLine"),
+    liqAvgLine: document.getElementById("liqAvgLine"),
+    peInput: document.getElementById("peInput"),
+    peHint: document.getElementById("peHint"),
+    tillerPanel: document.getElementById("tillerPanel"),
+    ckPanel: document.getElementById("ckPanel"),
+    dsInput: document.getElementById("dsInput"),
+    tfInput: document.getElementById("tfInput"),
+    lambdaInput: document.getElementById("lambdaInput"),
+    alphaCInput: document.getElementById("alphaCInput"),
+    wtToggle: document.getElementById("wtToggle"),
+    ckHint: document.getElementById("ckHint"),
     balanceBox: document.getElementById("balanceBox"),
     balanceValue: document.getElementById("balanceValue"),
     balanceMark: document.getElementById("balanceMark"),
@@ -998,13 +1249,153 @@
     return state.model === "scheil";
   }
 
+  function isTiller() {
+    return state.model === "tiller";
+  }
+
+  function isCK() {
+    return state.model === "clyne-kurz";
+  }
+
   function denominator(fs) {
     return 1 - (1 - state.k) * fs;
   }
 
+  // ── Clyne–Kurz ─────────────────────────────────────────────
+  // alpha = Ds*tf/X^2 with X = lambda2/2, so alpha = 4*Ds*tf/lambda2^2.
+  // Won–Thomas replaces alpha by alpha+ = 2*(alpha + alpha_C).
+  function alphaBase() {
+    const lambda = Math.max(state.lambda2, 1e-12);
+    return (4 * state.ds * state.tf) / (lambda * lambda);
+  }
+
+  function alphaEff() {
+    const a = alphaBase();
+    return state.wonThomas ? 2 * (a + state.alphaC) : a;
+  }
+
+  function betaCK(alpha) {
+    if (!(alpha > 0)) return 0;
+    if (!Number.isFinite(alpha)) return 1;
+    return 2 * alpha * (1 - Math.exp(-1 / alpha)) - Math.exp(-1 / (2 * alpha));
+  }
+
+  function ckCLNorm(fs) {
+    const k = state.k;
+    if (Math.abs(k - 1) < 1e-12) return 1;
+    const beta = betaCK(alphaEff());
+    const q = beta * k - 1;
+    if (Math.abs(q) < 1e-10) {
+      return Math.exp((1 - k) * fs);
+    }
+    return Math.pow(1 + q * fs, (1 - k) / q);
+  }
+
+  function ckAvgNorm(fs) {
+    if (fs < 1e-9) return state.k;
+    const cln = ckCLNorm(fs);
+    if (!Number.isFinite(cln)) {
+      // beta = 0 limit: use the Scheil average solid composition.
+      return (1 - Math.pow(1 - fs, state.k)) / fs;
+    }
+    return (1 - (1 - fs) * cln) / fs;
+  }
+
+  // ── Tiller et al. (diffusion-controlled planar growth) ─────
+  // The solid profile is integrated from local equilibrium and global solute
+  // balance. This recovers the initial transient, the C_S = C0 plateau, and
+  // the final transient spike, while keeping the liquid boundary layer
+  // C_L(z) = C0 + (C_L* - C0) exp(-Pe z) mass-conserving.
+  let tillerCache = { key: "", data: null };
+
+  function tillerData() {
+    const key = `${state.k}|${state.pe}`;
+    if (tillerCache.key === key) return tillerCache.data;
+
+    const N = 2200;
+    const xmax = 0.9999;
+    const dx = xmax / N;
+    const S = new Float64Array(N + 1);
+    const I = new Float64Array(N + 1);
+    S[0] = state.k;
+
+    for (let i = 1; i <= N; i++) {
+      const x = i * dx;
+      const l = Math.max(1 - x, 1e-9);
+      const sPrev = S[i - 1];
+      let s = sPrev;
+      for (let it = 0; it < 8; it++) {
+        const Ii = I[i - 1] + 0.5 * (sPrev + s) * dx;
+        const deficit = x - Ii;
+        const cStar = 1 + (deficit * state.pe) / (1 - Math.exp(-state.pe * l));
+        s = state.k * cStar;
+      }
+      S[i] = s;
+      I[i] = I[i - 1] + 0.5 * (sPrev + s) * dx;
+    }
+
+    const data = { N, xmax, dx, S, I };
+    tillerCache = { key, data };
+    return data;
+  }
+
+  function tillerAt(fs) {
+    const d = tillerData();
+    const x = Math.min(Math.max(fs, 0), d.xmax);
+    const index = Math.min(d.N - 1, Math.floor(x / d.dx));
+    const t = x / d.dx - index;
+    return {
+      s: d.S[index] * (1 - t) + d.S[index + 1] * t,
+      integral: d.I[index] * (1 - t) + d.I[index + 1] * t,
+    };
+  }
+
+  function tillerCSNorm(fs) {
+    if (fs >= 1 - 1e-12) return Infinity;
+    return tillerAt(fs).s;
+  }
+
+  function tillerCLNorm(fs) {
+    if (fs >= 1 - 1e-12) return Infinity;
+    return tillerAt(fs).s / state.k;
+  }
+
+  function tillerAvgNorm(fs) {
+    if (fs < 1e-9) return state.k;
+    if (fs >= 1 - 1e-12) return 1;
+    return tillerAt(fs).integral / fs;
+  }
+
+  function tillerCLAvgNorm(fs) {
+    if (fs >= 1 - 1e-12) return Infinity;
+    if (fs < 1e-9) return 1;
+    return (1 - tillerAt(fs).integral) / (1 - fs);
+  }
+
+  function tillerSolidProfileNorm(x) {
+    const d = tillerData();
+    const xx = Math.min(Math.max(x, 0), d.xmax);
+    const index = Math.min(d.N - 1, Math.floor(xx / d.dx));
+    const t = xx / d.dx - index;
+    return d.S[index] * (1 - t) + d.S[index + 1] * t;
+  }
+
+  function tillerLiquidProfileNorm(z, fs) {
+    const clStar = tillerCLNorm(fs);
+    if (!Number.isFinite(clStar)) return NaN;
+    return 1 + (clStar - 1) * Math.exp(-state.pe * z);
+  }
+
+  // ── Model values ───────────────────────────────────────────
   function cs(fs) {
     if (isScheil()) {
       return state.k * state.c0 * Math.pow(1 - fs, state.k - 1);
+    }
+    if (isTiller()) {
+      return state.c0 * tillerCSNorm(fs);
+    }
+    if (isCK()) {
+      return state.c0 * state.k * ckCLNorm(fs);
     }
     return (state.k * state.c0) / denominator(fs);
   }
@@ -1013,34 +1404,94 @@
     if (isScheil()) {
       return state.c0 * Math.pow(1 - fs, state.k - 1);
     }
+    if (isTiller()) {
+      return state.c0 * tillerCLNorm(fs);
+    }
+    if (isCK()) {
+      return state.c0 * ckCLNorm(fs);
+    }
     return state.c0 / denominator(fs);
   }
 
   // Average composition of all solid formed so far. This is the interface
-  // composition for equilibrium, but not for Scheil (the solid is cored).
+  // composition for equilibrium, but not for the cored / back-diffused models.
   function csAvg(fs) {
-    if (!isScheil()) return cs(fs);
-    if (fs < 1e-9) return state.k * state.c0;
-    return state.c0 * (1 - Math.pow(1 - fs, state.k)) / fs;
+    if (isScheil()) {
+      if (fs < 1e-9) return state.k * state.c0;
+      return state.c0 * (1 - Math.pow(1 - fs, state.k)) / fs;
+    }
+    if (isTiller()) {
+      return state.c0 * tillerAvgNorm(fs);
+    }
+    if (isCK()) {
+      return state.c0 * ckAvgNorm(fs);
+    }
+    return cs(fs);
+  }
+
+  // Mean liquid composition. Uniform for every model except Tiller.
+  function clAvg(fs) {
+    if (isTiller()) return state.c0 * tillerCLAvgNorm(fs);
+    return cl(fs);
   }
 
   // Normalized y-axis limit for the plotted curves.
   function yMaxNorm() {
-    if (!isScheil()) {
-      return Math.max(state.k, 1 / state.k) * 1.06;
+    const k = state.k;
+    if (isTiller()) {
+      const cap = 0.99;
+      const values = [1, k, tillerCSNorm(cap), tillerCLNorm(cap)]
+        .filter(Number.isFinite);
+      return Math.min(Math.max(...values) * 1.06, 25);
     }
-    if (state.k < 1) {
-      // Scheil diverges at fs = 1 for k < 1; cap the view at the value
-      // reached around fs = 0.95 so the early curve stays readable.
-      return Math.max(1, Math.pow(0.05, state.k - 1)) * 1.06;
+    if (isCK()) {
+      if (betaCK(alphaEff()) < 1e-6) {
+        if (k < 1) {
+          return Math.min(Math.max(1, Math.pow(0.05, k - 1)) * 1.06, 25);
+        }
+        return Math.max(1, k) * 1.06;
+      }
+      const cap = 0.999;
+      const values = [1, k, ckCLNorm(cap), k * ckCLNorm(cap), ckAvgNorm(cap)]
+        .filter(Number.isFinite);
+      return Math.min(Math.max(...values) * 1.06, 25);
     }
-    return Math.max(1, state.k) * 1.06;
+    if (isScheil()) {
+      if (k < 1) {
+        // Scheil diverges at fs = 1 for k < 1; cap the view at the value
+        // reached around fs = 0.95 so the early curve stays readable.
+        return Math.min(Math.max(1, Math.pow(0.05, k - 1)) * 1.06, 25);
+      }
+      return Math.max(1, k) * 1.06;
+    }
+    return Math.max(state.k, 1 / state.k) * 1.06;
+  }
+
+  // Along-bar y-axis limit. It follows the current state so that the Tiller
+  // boundary layer stays readable when the interface is only part-way along.
+  function spatialYMaxNorm() {
+    const values = [
+      1,
+      state.k,
+      cs(state.fs) / state.c0,
+      cl(state.fs) / state.c0,
+      csAvg(state.fs) / state.c0,
+    ].filter(Number.isFinite);
+    return Math.min(Math.max(...values) * 1.12, 25);
   }
 
   // Composition of the solid deposited at position x along the bar.
   function solidProfileNorm(x) {
     if (isScheil()) {
       return state.k * Math.pow(1 - x, state.k - 1);
+    }
+    if (isTiller()) {
+      return tillerSolidProfileNorm(x);
+    }
+    if (isCK()) {
+      // Clyne–Kurz does not resolve a spatial solid profile. Show the
+      // back-diffused average as the homogenized solid composition.
+      return ckAvgNorm(state.fs);
     }
     return cs(state.fs) / state.c0;
   }
@@ -1120,6 +1571,31 @@
       x: M.left, y: M.top, width: plotW, height: plotH,
       fill: "#fbfdfd",
     }));
+
+    // Tiller stages: initial transient, steady growth, final transient.
+    if (isTiller()) {
+      const xInit = Math.min(0.45, 1 / (state.k * state.pe));
+      const xFinal = Math.max(0.55, 1 - 1 / state.pe);
+      const bands = [
+        [0, xInit, "#fef3c7", "initial"],
+        [xInit, xFinal, "#ecfdf5", "steady C\u209B = C\u2080"],
+        [xFinal, 1, "#ffedd5", "final"],
+      ];
+      for (const [a, b, fill, label] of bands) {
+        plot.appendChild(svgEl("rect", {
+          x: xScale(a), y: M.top, width: Math.max(0, xScale(b) - xScale(a)),
+          height: plotH, fill, "fill-opacity": 0.55,
+        }));
+        const text = svgEl("text", {
+          x: (xScale(a) + xScale(b)) / 2,
+          y: M.top + 16,
+          "text-anchor": "middle",
+          class: "stage-label",
+        });
+        text.textContent = label;
+        plot.appendChild(text);
+      }
+    }
 
     // Horizontal grid + y tick labels
     for (const tick of yTicks) {
@@ -1213,13 +1689,21 @@
     }));
     plot.appendChild(dataGroup);
 
-    // Singular Scheil endpoint note
+    // Endpoint / view-clipping note
+    let cornerNote = "";
     if (isScheil() && state.k < 1) {
+      cornerNote = "C \u2192 \u221E as f\u209B \u2192 1";
+    } else if (isTiller()) {
+      cornerNote = "final transient clipped";
+    } else if (isCK() && betaCK(alphaEff()) < 1e-6 && state.k < 1) {
+      cornerNote = "C \u2192 \u221E as f\u209B \u2192 1";
+    }
+    if (cornerNote) {
       const note = svgEl("text", {
         x: M.left + plotW - 8, y: M.top + 17,
         "text-anchor": "end", class: "tick-text", fill: "#c2410c",
       });
-      note.textContent = "C \u2192 \u221E as f\u209B \u2192 1";
+      note.textContent = cornerNote;
       plot.appendChild(note);
     }
 
@@ -1299,15 +1783,27 @@
     const plot = els.spatialPlot;
     plot.textContent = "";
 
-    const yMax = yMaxNorm();
+    const yMax = spatialYMaxNorm();
     const yTicks = ticksFor(yMax, 5);
     const x0 = SM.left;
     const x1 = SM.left + sPlotW;
     const xf = sx(state.fs);
     const csNorm = cs(state.fs) / state.c0;
     const clNorm = cl(state.fs) / state.c0;
+    const avgNorm = csAvg(state.fs) / state.c0;
     const ySolid = Number.isFinite(csNorm) ? sy(csNorm, yMax) : null;
     const yLiquid = Number.isFinite(clNorm) ? sy(clNorm, yMax) : null;
+    const ySolidLine = isCK()
+      ? (Number.isFinite(avgNorm) ? sy(avgNorm, yMax) : null)
+      : ySolid;
+
+    // Liquid profile helper: Tiller has a decaying boundary layer, while the
+    // other models treat the liquid as uniform.
+    const zMax = 1 - state.fs;
+    const liquidAt = (z) => {
+      if (isTiller()) return tillerLiquidProfileNorm(z, state.fs);
+      return clNorm;
+    };
 
     // Phase tints behind the profile
     plot.appendChild(svgEl("rect", {
@@ -1386,6 +1882,18 @@
       x: x0, y: sAxisTop, width: sPlotW, height: sPlotH,
     }));
     defs.appendChild(profileClip);
+
+    // Gradient used by the solid–liquid connector at the interface.
+    const linkGradient = svgEl("linearGradient", {
+      id: "interfaceLink", x1: "0", y1: "1", x2: "0", y2: "0",
+    });
+    linkGradient.appendChild(svgEl("stop", {
+      offset: "0%", "stop-color": "#0f766e",
+    }));
+    linkGradient.appendChild(svgEl("stop", {
+      offset: "100%", "stop-color": "#c2410c",
+    }));
+    defs.appendChild(linkGradient);
     plot.appendChild(defs);
 
     plot.appendChild(svgEl("rect", {
@@ -1438,17 +1946,18 @@
     }));
 
     // ── Composition profile ─────────────────────────────────
-    // Equilibrium: the solid is uniform, so the profile is a flat line.
-    // Scheil: each deposited solid layer keeps its composition, producing
-    // a cored profile CS(x) = k*C0*(1-x)^(k-1).
+    // Equilibrium: uniform solid. Scheil: cored solid. Tiller: the frozen
+    // solid profile plus a decaying liquid boundary layer. Clyne–Kurz: the
+    // back-diffused average solid composition (the model has no spatial
+    // solid profile), with the interface composition marked separately.
     const profileGroup = svgEl("g", { "clip-path": "url(#spatialDataClip)" });
 
     if (state.fs > 0.001) {
-      const M = 180;
+      const M = 220;
       const solidPoints = [];
       for (let i = 0; i <= M; i++) {
         const x = state.fs * (i / M);
-        const value = solidProfileNorm(x);
+        const value = isCK() ? avgNorm : solidProfileNorm(x);
         if (Number.isFinite(value)) {
           solidPoints.push(`${sx(x).toFixed(2)},${sy(value, yMax).toFixed(2)}`);
         }
@@ -1461,19 +1970,40 @@
       }
     }
 
-    if (state.fs < 0.999 && yLiquid !== null) {
-      profileGroup.appendChild(svgEl("line", {
-        x1: xf, y1: yLiquid, x2: x1, y2: yLiquid,
-        class: "curve", stroke: "#c2410c", "stroke-width": 3,
-        "stroke-dasharray": "7 6",
-      }));
+    if (state.fs < 0.999) {
+      const liquidPoints = [];
+      for (let i = 0; i <= 90; i++) {
+        const z = zMax * (i / 90);
+        const value = liquidAt(z);
+        if (Number.isFinite(value)) {
+          liquidPoints.push(`${sx(state.fs + z).toFixed(2)},${sy(value, yMax).toFixed(2)}`);
+        }
+      }
+      if (liquidPoints.length > 1 && Number.isFinite(liquidAt(0))) {
+        profileGroup.appendChild(svgEl("polyline", {
+          points: liquidPoints.join(" "),
+          class: "curve", stroke: "#c2410c", "stroke-width": 3,
+          "stroke-dasharray": isTiller() ? "none" : "7 6",
+        }));
+      }
     }
 
-    // Jump at the interface (only when both sides are finite)
+    // Connector between the solid dot and the liquid dot at the interface.
     if (ySolid !== null && yLiquid !== null) {
       profileGroup.appendChild(svgEl("line", {
         x1: xf, y1: ySolid, x2: xf, y2: yLiquid,
-        stroke: "#8796aa", "stroke-width": 1.3, "stroke-dasharray": "3 4",
+        stroke: "url(#interfaceLink)", "stroke-width": 3.2,
+        "stroke-linecap": "round", opacity: 0.95,
+      }));
+    }
+
+    // Clyne–Kurz: show how the interface solid compares with the average.
+    if (isCK() && ySolidLine !== null && ySolid !== null &&
+        Math.abs(ySolidLine - ySolid) > 1) {
+      profileGroup.appendChild(svgEl("line", {
+        x1: xf, y1: ySolidLine, x2: xf, y2: ySolid,
+        stroke: "#0f766e", "stroke-width": 1.4,
+        "stroke-dasharray": "3 4", opacity: 0.6,
       }));
     }
 
@@ -1496,33 +2026,66 @@
         cx: xf, cy: yLiquid, r: 3, class: "point-liquid",
       }));
     }
+
+    // Boundary-layer thickness marker for Tiller.
+    if (isTiller() && state.fs < 0.999) {
+      const delta = 1 / state.pe;
+      const zEnd = Math.min(delta, zMax);
+      if (zEnd > 0.004) {
+        const yBar = sAxisBottom - 12;
+        const xa = sx(state.fs);
+        const xb = sx(state.fs + zEnd);
+        profileGroup.appendChild(svgEl("line", {
+          x1: xa, y1: yBar, x2: xb, y2: yBar,
+          stroke: "#94a3b8", "stroke-width": 1.4,
+        }));
+        profileGroup.appendChild(svgEl("line", {
+          x1: xa, y1: yBar - 4, x2: xa, y2: yBar + 4,
+          stroke: "#94a3b8", "stroke-width": 1.4,
+        }));
+        profileGroup.appendChild(svgEl("line", {
+          x1: xb, y1: yBar - 4, x2: xb, y2: yBar + 4,
+          stroke: "#94a3b8", "stroke-width": 1.4,
+        }));
+        const deltaText = svgEl("text", {
+          x: (xa + xb) / 2, y: yBar - 7,
+          "text-anchor": "middle", class: "line-label", fill: "#64748b",
+        });
+        deltaText.textContent = zEnd < delta
+          ? "\u03B4/L"
+          : `\u03B4/L = ${delta.toFixed(3)}`;
+        profileGroup.appendChild(deltaText);
+      }
+    }
     plot.appendChild(profileGroup);
 
     // Phase labels, hidden when a segment is too short
     if (state.fs * sPlotW > 34) {
       const xMid = state.fs / 2;
-      const midValue = solidProfileNorm(xMid);
+      const midValue = isCK() ? avgNorm : solidProfileNorm(xMid);
       const yMid = Number.isFinite(midValue) ? sy(midValue, yMax) : sAxisTop + 13;
       const solidLabel = svgEl("text", {
         x: x0 + (state.fs * sPlotW) / 2,
         y: Math.max(sAxisTop + 13, yMid - 9),
         "text-anchor": "middle", class: "line-label", fill: "#0f766e",
       });
-      solidLabel.textContent = isScheil() ? "C\u209B(x)" : "C\u209B";
+      solidLabel.textContent = isCK()
+        ? "C\u209B,avg"
+        : (isScheil() || isTiller()) ? "C\u209B(x)" : "C\u209B";
       plot.appendChild(solidLabel);
     }
-    if (
-      (1 - state.fs) * sPlotW > 34 &&
-      yLiquid !== null &&
-      ySolid !== null &&
-      Math.abs(ySolid - yLiquid) > 15
-    ) {
+    if ((1 - state.fs) * sPlotW > 34 && yLiquid !== null) {
+      const zMid = zMax / 2;
+      const midLiquid = liquidAt(zMid);
+      const yMidLiquid = Number.isFinite(midLiquid)
+        ? sy(midLiquid, yMax)
+        : yLiquid;
       const liquidLabel = svgEl("text", {
         x: xf + ((1 - state.fs) * sPlotW) / 2,
-        y: Math.max(sAxisTop + 13, yLiquid - 9),
+        y: Math.max(sAxisTop + 13, yMidLiquid - 9),
         "text-anchor": "middle", class: "line-label", fill: "#c2410c",
       });
-      liquidLabel.textContent = "C\u2097";
+      liquidLabel.textContent = isTiller() ? "C\u2097(z)" : "C\u2097";
       plot.appendChild(liquidLabel);
     }
   }
@@ -1534,7 +2097,82 @@
     if (state.model === lastModel) return;
     lastModel = state.model;
 
-    if (isScheil()) {
+    els.tillerPanel.hidden = !isTiller();
+    els.ckPanel.hidden = !isCK();
+
+    if (isTiller()) {
+      els.modelBlurb.textContent =
+        "No solid diffusion and no liquid convection. Solute piles up in a thin boundary layer ahead of the interface.";
+      els.equationLabel.textContent = "Initial transient (Tiller et al.)";
+      els.formula.innerHTML =
+        'C<sub>S</sub>(x) = C<sub>0</sub>[k + (1 \u2212 k)(1 \u2212 e<sup>\u2212kPe x</sup>)]';
+      els.equationNote.innerHTML =
+        'Steady state: <em>C<sub>S</sub> = C<sub>0</sub></em> and ' +
+        '<em>C<sub>L</sub>(z) = C<sub>0</sub>[1 + (1 \u2212 k)/k \u00b7 e<sup>\u2212Pe z</sup>]</em>, ' +
+        'with <em>\u03B4/L = 1/Pe</em>. Near f<sub>s</sub> = 1 the boundary layer reaches the mold wall and produces a final-transient spike.';
+      els.graphSubtitle.innerHTML =
+        'Tiller et al.: initial transient \u2192 steady growth C<sub>S</sub> = C<sub>0</sub> \u2192 final transient';
+      els.spatialSubtitle.textContent =
+        "Solid profile C_S(x); liquid boundary layer C_L(z) ahead of the interface";
+      els.csLabel.innerHTML = 'Solid (interface), C<sub>S</sub>*';
+      els.clLabel.innerHTML = 'Liquid (interface), C<sub>L</sub>*';
+      els.avgLine.hidden = false;
+      els.liqAvgLine.hidden = false;
+      els.derivationP1.innerHTML =
+        'With no solid diffusion, each solid layer keeps the composition at which it formed. ' +
+        'Solute rejected by the growing solid can only spread by diffusion in the liquid, so a ' +
+        'boundary layer builds up ahead of the interface. Local equilibrium gives ' +
+        '<code>C_S* = k C_L*</code>.';
+      els.derivationP2.innerHTML =
+        'At steady state the interface liquid composition reaches <code>C_0/k</code> and the solid ' +
+        'grows at <code>C_0</code>. The app integrates the solid profile from the local-equilibrium ' +
+        'condition and the overall solute balance, so the initial transient, plateau, and final spike ' +
+        'are all mass-conserving. The liquid profile is ' +
+        '<code>C_L(z) = C_0 + (C_L* \u2212 C_0)e<sup>\u2212Pe z</sup></code>.';
+      els.footnote.innerHTML =
+        '<strong>How to read it:</strong> the first solid is <code>kC_0</code>; the solid then rises ' +
+        'toward <code>C_0</code> while the liquid at the interface rises toward <code>C_0/k</code>. ' +
+        'In the middle of the bar the solid is close to <code>C_0</code> and the liquid decays from ' +
+        'the interface value to the bulk over <code>\u03B4/L = 1/Pe</code>. Near the end the boundary ' +
+        'layer is squeezed against the mold wall, so both curves spike; the plot is clipped and the ' +
+        'last-liquid value is singular in the ideal no-mixing limit.';
+    } else if (isCK()) {
+      els.modelBlurb.textContent =
+        "Finite solid-state back diffusion with a fully mixed liquid. Bridges Scheil and the lever rule.";
+      els.equationLabel.textContent = "Clyne\u2013Kurz result";
+      els.formula.innerHTML =
+        'C<sub>L</sub>/C<sub>0</sub> = [1 \u2212 (1 \u2212 \u03B2<sub>CK</sub>k)f<sub>s</sub>]' +
+        '<sup>(k\u22121)/(1\u2212\u03B2<sub>CK</sub>k)</sup>';
+      els.equationNote.innerHTML =
+        'Back-diffusion parameter <em>\u03B2<sub>CK</sub> = 2\u03B1(1 \u2212 e<sup>\u22121/\u03B1</sup>) \u2212 e<sup>\u22121/(2\u03B1)</sup></em> ' +
+        'with <em>\u03B1 = 4D<sub>s</sub>t<sub>f</sub>/\u03BB<sub>2</sub><sup>2</sup></em>. ' +
+        'The interface solid is <em>C<sub>S</sub>* = kC<sub>L</sub></em>.';
+      els.graphSubtitle.innerHTML =
+        'Clyne\u2013Kurz: finite solid back diffusion, homogenized liquid';
+      els.spatialSubtitle.textContent =
+        "Back-diffused average solid composition; the interface composition is marked separately";
+      els.csLabel.innerHTML = 'Solid (interface), C<sub>S</sub>*';
+      els.clLabel.innerHTML = 'Liquid, C<sub>L</sub>';
+      els.avgLine.hidden = false;
+      els.liqAvgLine.hidden = true;
+      els.derivationP1.innerHTML =
+        'The liquid is assumed homogeneous, but the solid retains a finite amount of back diffusion. ' +
+        'A solute balance on an increment of solid gives the generalized back-diffusion form ' +
+        '<code>C_L/C_0 = [1 + (\u03B2k \u2212 1)f_s]<sup>(1\u2212k)/(\u03B2k\u22121)</sup></code>. ' +
+        'Clyne and Kurz replace \u03B2 by <code>\u03B2_CK(\u03B1)</code>, which is bounded between 0 and 1.';
+      els.derivationP2.innerHTML =
+        '<code>\u03B2 = 0</code> recovers Scheil\u2013Gulliver; <code>\u03B2 = 1</code> recovers the lever rule. ' +
+        'The interface solid is <code>C_S* = kC_L</code>; the average solid composition follows from ' +
+        'mass conservation, <code>C_S,avg = [C_0 \u2212 (1 \u2212 f_s)C_L]/f_s</code>. ' +
+        'The Won\u2013Thomas option replaces \u03B1 by <code>\u03B1\u207A = 2(\u03B1 + \u03B1_C)</code>, ' +
+        'an approximate coarsening correction.';
+      els.footnote.innerHTML =
+        '<strong>How to read it:</strong> increasing <code>D_s t_f/\u03BB_2\u00B2</code> raises \u03B1 and \u03B2, ' +
+        'so the curves move from the Scheil limit toward the equilibrium lever rule. ' +
+        'The solid line is the composition of solid forming at the interface; the readout also shows ' +
+        'the average solid composition. The along-bar solid line is the back-diffused average, because ' +
+        'Clyne\u2013Kurz does not resolve a full spatial solid profile.';
+    } else if (isScheil()) {
       els.modelBlurb.textContent =
         "No solid diffusion; liquid perfectly mixed. The solid keeps a cored profile.";
       els.equationLabel.textContent = "Scheil\u2013Gulliver result";
@@ -1548,7 +2186,9 @@
       els.spatialSubtitle.textContent =
         "Cored solid profile; the remaining liquid stays uniform";
       els.csLabel.innerHTML = 'Solid (interface), C<sub>S</sub>*';
+      els.clLabel.innerHTML = 'Liquid, C<sub>L</sub>';
       els.avgLine.hidden = false;
+      els.liqAvgLine.hidden = true;
       els.derivationP1.innerHTML =
         'As solid forms, solute is rejected into a perfectly mixed liquid. ' +
         'With no solid-state diffusion, the new solid freezes with composition ' +
@@ -1579,7 +2219,9 @@
       els.spatialSubtitle.textContent =
         "Uniform solid and liquid compositions at the current interface position";
       els.csLabel.innerHTML = 'Solid, C<sub>S</sub>';
+      els.clLabel.innerHTML = 'Liquid, C<sub>L</sub>';
       els.avgLine.hidden = true;
+      els.liqAvgLine.hidden = true;
       els.derivationP1.innerHTML =
         'Solute is conserved in the closed volume: ' +
         '<code>C\u2080 = f_s C_S + (1 \u2212 f_s) C_L</code>. ' +
@@ -1598,10 +2240,31 @@
     }
   }
 
+  function updateParamHints() {
+    const delta = 1 / state.pe;
+    const initLength = 1 / (state.k * state.pe);
+    els.peHint.innerHTML =
+      `\u03B4/L = 1/Pe = <strong>${delta.toFixed(3)}</strong> \u00b7 ` +
+      `initial transient scale 1/(kPe) = <strong>${initLength.toFixed(3)}</strong>. ` +
+      'Use Pe \u2265 1 for a thin boundary layer.';
+
+    const aBase = alphaBase();
+    const aEff = alphaEff();
+    const beta = betaCK(aEff);
+    const correction = state.wonThomas
+      ? ` \u00b7 \u03B1\u207A = 2(\u03B1 + \u03B1<sub>C</sub>) = <strong>${aEff.toPrecision(4)}</strong>`
+      : '';
+    els.ckHint.innerHTML =
+      `\u03B1 = 4D<sub>s</sub>t<sub>f</sub>/\u03BB<sub>2</sub><sup>2</sup> = ` +
+      `<strong>${aBase.toPrecision(4)}</strong>${correction} \u00b7 ` +
+      `\u03B2<sub>CK</sub> = <strong>${beta.toPrecision(4)}</strong>`;
+  }
+
   function update() {
     const { fs } = state;
 
     syncModelUI();
+    updateParamHints();
 
     // Slider fill + labels
     els.fsSlider.style.setProperty("--pct", `${fs * 100}%`);
@@ -1612,13 +2275,25 @@
     const csNow = cs(fs);
     const clNow = cl(fs);
     const avgNow = csAvg(fs);
-    const singular = isScheil() && state.k < 1 && fs > 0.999999;
+    const clAvgNow = clAvg(fs);
+    const singular = fs > 0.999999 && (
+      (isScheil() && state.k < 1) ||
+      isTiller() ||
+      (isCK() && betaCK(alphaEff()) < 1e-9 && state.k < 1)
+    );
 
     els.csValue.textContent = fmt(csNow);
     els.clValue.textContent = fmt(clNow);
     els.csAvgValue.textContent = fmt(avgNow);
-    els.balanceValue.textContent = singular ? "\u2014" : fmt(fs * avgNow + (1 - fs) * clNow);
-    els.balanceMark.innerHTML = singular ? "singular at f\u209B = 1" : "= C<sub>0</sub>";
+    els.clAvgValue.textContent = fmt(clAvgNow);
+
+    const balance = fs >= 1 - 1e-9
+      ? avgNow
+      : fs * avgNow + (1 - fs) * clAvgNow;
+    els.balanceValue.textContent = fmt(balance);
+    els.balanceMark.innerHTML = singular
+      ? "liquid singular at f\u209B = 1"
+      : "= C<sub>0</sub>";
     els.balanceBox.classList.toggle("warn", singular);
 
     // Bar percentages
@@ -1688,6 +2363,56 @@
       event.target.value = "100";
       setState({ c0: 100 });
     }
+  });
+
+  els.peInput.addEventListener("input", (event) => {
+    const value = Number(event.target.value);
+    if (Number.isFinite(value) && value >= 1 && value <= 200) {
+      setState({ pe: value });
+    }
+  });
+
+  els.peInput.addEventListener("blur", (event) => {
+    const value = Number(event.target.value);
+    if (!Number.isFinite(value) || value < 1) {
+      event.target.value = "1";
+      setState({ pe: 1 });
+    } else if (value > 200) {
+      event.target.value = "200";
+      setState({ pe: 200 });
+    }
+  });
+
+  els.dsInput.addEventListener("input", (event) => {
+    const value = Number(event.target.value);
+    if (Number.isFinite(value) && value >= 0 && value <= 1000) {
+      setState({ ds: value * 1e-12 });
+    }
+  });
+
+  els.tfInput.addEventListener("input", (event) => {
+    const value = Number(event.target.value);
+    if (Number.isFinite(value) && value >= 0 && value <= 100000) {
+      setState({ tf: value });
+    }
+  });
+
+  els.lambdaInput.addEventListener("input", (event) => {
+    const value = Number(event.target.value);
+    if (Number.isFinite(value) && value > 0 && value <= 10000) {
+      setState({ lambda2: value * 1e-6 });
+    }
+  });
+
+  els.alphaCInput.addEventListener("input", (event) => {
+    const value = Number(event.target.value);
+    if (Number.isFinite(value) && value >= 0 && value <= 10) {
+      setState({ alphaC: value });
+    }
+  });
+
+  els.wtToggle.addEventListener("change", (event) => {
+    setState({ wonThomas: event.target.checked });
   });
 
   // Keyboard nudge with arrow keys is native for range inputs.

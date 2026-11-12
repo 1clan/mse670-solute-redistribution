@@ -1,5 +1,5 @@
 function fs_slider
-% FS_SLIDER  Interactive solute-redistribution slider for two solidification models.
+% FS_SLIDER  Interactive solute-redistribution slider for four solidification models.
 %
 %   Move the solid-fraction slider from 0 to 1. The plot shows the solid and
 %   liquid compositions for the selected model:
@@ -13,9 +13,20 @@ function fs_slider
 %       CS = k*C0 * (1 - fs)^(k-1)
 %       CL =    C0 * (1 - fs)^(k-1)
 %
-%   where k is the partition coefficient (k > 0) and C0 is the nominal
-%   composition. A second axes shows the composition along the bar:
-%   uniform phases for equilibrium, a cored solid profile for Scheil.
+%   Tiller et al. (diffusion-controlled planar growth), no solid diffusion
+%   and no liquid mixing. A boundary layer builds up ahead of the interface:
+%       CS(x) = C0*[k + (1-k)(1 - exp(-k*Pe*x))]   (initial transient)
+%       CS    = C0                                  (steady growth)
+%       CL(z) = C0*[1 + (1-k)/k * exp(-Pe*z)],  delta/L = 1/Pe
+%
+%   Clyne-Kurz (finite solid back diffusion, mixed liquid):
+%       CL/C0 = [1 - (1-beta*k)*fs]^((k-1)/(1-beta*k))
+%       beta  = 2*alpha*(1-exp(-1/alpha)) - exp(-1/(2*alpha))
+%       alpha = 4*Ds*tf/lambda2^2
+%   The Won-Thomas option replaces alpha by alpha+ = 2*(alpha + alpha_C).
+%
+%   A second axes shows the composition along the bar. k is unrestricted
+%   (k > 0); it is not limited to 0 < k <= 1.
 %
 %   HOW TO RUN
 %       Put this file in the Current Folder and run:  fs_slider
@@ -24,17 +35,28 @@ function fs_slider
 %
 %   Default values (k = 0.30, C0 = 1.0 wt.%) are illustrative only.
 
-C0 = 1.0;    % nominal composition, wt.%
-k  = 0.30;   % partition coefficient (k > 0)
-fs0 = 0.50;  % initial solid fraction
+C0   = 1.0;    % nominal composition, wt.%
+k    = 0.30;   % partition coefficient (k > 0)
+fs0  = 0.50;   % initial solid fraction
+
+% Model parameters
+pe0      = 20;       % Tiller Peclet number, Pe = v*L/D_L
+ds0      = 0.1;      % solid diffusivity, units of 1e-12 m^2/s
+tf0      = 100;      % local solidification time, s
+lambda20 = 20;       % secondary dendrite arm spacing, microns
+alphaC0  = 0.10;     % Won-Thomas coarsening constant
+
+solidColor  = [0.06 0.46 0.43];
+liquidColor = [0.76 0.25 0.05];
+guideColor  = [0.15 0.30 0.55];
 
 %% UI
-fig = uifigure('Name','Solute redistribution: composition vs solid fraction', ...
-    'Color',[0.96 0.98 1.00], 'Position',[100 100 1080 700]);
+fig = uifigure('Name','Solute redistribution: four solidification models', ...
+    'Color',[0.96 0.98 1.00], 'Position',[100 100 1120 830]);
 
 g = uigridlayout(fig,[3 2]);
-g.RowHeight = {40,'1x',126};
-g.ColumnWidth = {360,'1x'};
+g.RowHeight = {40,'1x',150};
+g.ColumnWidth = {380,'1x'};
 g.Padding = [16 14 16 14];
 g.RowSpacing = 12;
 g.ColumnSpacing = 16;
@@ -48,13 +70,16 @@ head.FontColor = [0.06 0.13 0.20];
 % Control panel
 ctrl = uigridlayout(g,[8 2]);
 ctrl.Layout.Row = 2; ctrl.Layout.Column = 1;
-ctrl.RowHeight = {34,24,42,34,34,64,30,'1x'};
-ctrl.ColumnWidth = {'1x',110};
+ctrl.RowHeight = {32,22,42,30,30,0,66,50};
+ctrl.ColumnWidth = {'1x',120};
 ctrl.Padding = [0 0 0 0];
 ctrl.RowSpacing = 8;
 
 modelDrop = uidropdown(ctrl, ...
-    'Items',{'Equilibrium (lever rule)','Scheil-Gulliver'}, ...
+    'Items',{'Equilibrium (lever rule)', ...
+             'Scheil-Gulliver', ...
+             'Tiller et al. (diffusion-controlled)', ...
+             'Clyne-Kurz (back diffusion)'}, ...
     'Value','Equilibrium (lever rule)');
 modelDrop.Layout.Row = 1; modelDrop.Layout.Column = [1 2];
 
@@ -67,7 +92,7 @@ valFs = uilabel(ctrl);
 valFs.Layout.Row = 2; valFs.Layout.Column = 2;
 valFs.HorizontalAlignment = 'right';
 valFs.FontWeight = 'bold';
-valFs.FontColor = [0.06 0.45 0.42];
+valFs.FontColor = solidColor;
 
 sld = uislider(ctrl,'Limits',[0 1],'Value',fs0);
 sld.Layout.Row = 3; sld.Layout.Column = [1 2];
@@ -91,17 +116,65 @@ c0Field = uieditfield(ctrl,'numeric','Limits',[0.01 100], ...
     'Value',C0,'ValueDisplayFormat','%.2f');
 c0Field.Layout.Row = 5; c0Field.Layout.Column = 2;
 
+% Model-specific parameter panel
+pg = uigridlayout(ctrl,[6 2]);
+pg.Layout.Row = 6; pg.Layout.Column = [1 2];
+pg.RowHeight = {30,30,30,30,30,26};
+pg.ColumnWidth = {'1x',120};
+pg.Padding = [0 0 0 0];
+pg.RowSpacing = 4;
+pg.Visible = 'off';
+
+peLbl = uilabel(pg);
+peLbl.Layout.Row = 1; peLbl.Layout.Column = 1;
+peLbl.Text = 'Peclet number, Pe = vL/D_L';
+peField = uieditfield(pg,'numeric','Limits',[1 200], ...
+    'Value',pe0,'ValueDisplayFormat','%.4g');
+peField.Layout.Row = 1; peField.Layout.Column = 2;
+
+dsLbl = uilabel(pg);
+dsLbl.Layout.Row = 2; dsLbl.Layout.Column = 1;
+dsLbl.Text = 'D_s (x10^-12 m^2/s)';
+dsField = uieditfield(pg,'numeric','Limits',[0 1000], ...
+    'Value',ds0,'ValueDisplayFormat','%.4g');
+dsField.Layout.Row = 2; dsField.Layout.Column = 2;
+
+tfLbl = uilabel(pg);
+tfLbl.Layout.Row = 3; tfLbl.Layout.Column = 1;
+tfLbl.Text = 'Solidification time, t_f (s)';
+tfField = uieditfield(pg,'numeric','Limits',[0 100000], ...
+    'Value',tf0,'ValueDisplayFormat','%.4g');
+tfField.Layout.Row = 3; tfField.Layout.Column = 2;
+
+lamLbl = uilabel(pg);
+lamLbl.Layout.Row = 4; lamLbl.Layout.Column = 1;
+lamLbl.Text = 'Arm spacing, lambda_2 (microns)';
+lamField = uieditfield(pg,'numeric','Limits',[0.01 10000], ...
+    'Value',lambda20,'ValueDisplayFormat','%.4g');
+lamField.Layout.Row = 4; lamField.Layout.Column = 2;
+
+aCLbl = uilabel(pg);
+aCLbl.Layout.Row = 5; aCLbl.Layout.Column = 1;
+aCLbl.Text = 'Won-Thomas constant, alpha_C';
+aCField = uieditfield(pg,'numeric','Limits',[0 10], ...
+    'Value',alphaC0,'ValueDisplayFormat','%.3f');
+aCField.Layout.Row = 5; aCField.Layout.Column = 2;
+
+wtCheck = uicheckbox(pg,'Text','Won-Thomas: alpha+ = 2(alpha + alpha_C)', ...
+    'Value',false);
+wtCheck.Layout.Row = 6; wtCheck.Layout.Column = [1 2];
+
 eq = uilabel(ctrl);
-eq.Layout.Row = 6; eq.Layout.Column = [1 2];
+eq.Layout.Row = 7; eq.Layout.Column = [1 2];
 eq.Text = {'C_S = k C_0 / [1 - (1-k) f_s]', ...
            'C_L =     C_0 / [1 - (1-k) f_s]'};
 eq.FontName = 'Consolas';
-eq.FontSize = 13;
+eq.FontSize = 12;
 eq.HorizontalAlignment = 'center';
 eq.BackgroundColor = [0.96 0.97 0.99];
 
 note = uilabel(ctrl);
-note.Layout.Row = 7; note.Layout.Column = [1 2];
+note.Layout.Row = 8; note.Layout.Column = [1 2];
 note.Text = 'Complete diffusion in solid and liquid (equilibrium limit).';
 note.FontSize = 11;
 note.FontColor = [0.35 0.42 0.50];
@@ -143,101 +216,286 @@ xlabel(axSpatial,'Position along bar, x / L');
 ylabel(axSpatial,'C / C_0');
 title(axSpatial,'Composition along the bar');
 
-fsGrid = linspace(0,1,500);
-csCurve = k*C0 ./ (1-(1-k)*fsGrid);
-clCurve =    C0 ./ (1-(1-k)*fsGrid);
+fsGrid = linspace(0,1,600);
+bandColors = {[0.95 0.75 0.20],[0.20 0.65 0.45],[0.90 0.50 0.15]};
+bandNames = {'initial','steady','final'};
 
 hold(ax,'on');
-hCL = plot(ax,fsGrid,clCurve/C0,'--','LineWidth',1.8, ...
-    'Color',[0.76 0.25 0.05],'DisplayName','Liquid, C_L');
-hCS = plot(ax,fsGrid,csCurve/C0,'-','LineWidth',2.6, ...
-    'Color',[0.06 0.46 0.43],'DisplayName','Solid, C_S');
+hBand = gobjects(1,3);
+hBandText = gobjects(1,3);
+for ib = 1:3
+    hBand(ib) = patch(ax,[0 0 0 0],[0 0 1 1],bandColors{ib}, ...
+        'FaceAlpha',0.10,'EdgeColor','none','HandleVisibility','off', ...
+        'Visible','off');
+end
+hCL = plot(ax,fsGrid,ones(size(fsGrid)),'--','LineWidth',1.8, ...
+    'Color',liquidColor,'DisplayName','Liquid, C_L');
+hCS = plot(ax,fsGrid,ones(size(fsGrid)),'-','LineWidth',2.6, ...
+    'Color',solidColor,'DisplayName','Solid, C_S');
 hGuide = plot(ax,[fs0 fs0],[0 1],':','LineWidth',1.2, ...
-    'Color',[0.15 0.30 0.55],'HandleVisibility','off');
-hPtS = plot(ax,fs0,interp1(fsGrid,csCurve/C0,fs0),'o','MarkerSize',8, ...
-    'MarkerFaceColor',[0.06 0.46 0.43],'MarkerEdgeColor','w', ...
+    'Color',guideColor,'HandleVisibility','off');
+hPtS = plot(ax,fs0,1,'o','MarkerSize',8, ...
+    'MarkerFaceColor',solidColor,'MarkerEdgeColor','w', ...
     'HandleVisibility','off');
-hPtL = plot(ax,fs0,interp1(fsGrid,clCurve/C0,fs0),'o','MarkerSize',8, ...
-    'MarkerFaceColor',[0.76 0.25 0.05],'MarkerEdgeColor','w', ...
+hPtL = plot(ax,fs0,1,'o','MarkerSize',8, ...
+    'MarkerFaceColor',liquidColor,'MarkerEdgeColor','w', ...
     'HandleVisibility','off');
+for ib = 1:3
+    hBandText(ib) = text(ax,0.5,0.5,bandNames{ib}, ...
+        'HorizontalAlignment','center','FontSize',9, ...
+        'Color',[0.45 0.38 0.22],'Visible','off');
+end
 legend(ax,'Location','northwest');
 hold(ax,'off');
 
-% Spatial profile: equilibrium gives a step between the uniform solid and
-% liquid compositions; Scheil gives a cored solid profile.
-yTop0 = max([1, k, 1/k])*1.06;
+% Spatial profile
+yTop0 = 2;
 hold(axSpatial,'on');
-hRegionS = patch(axSpatial,[0 fs0 fs0 0],[0 0 yTop0 yTop0], ...
-    [0.06 0.46 0.43],'FaceAlpha',0.07,'EdgeColor','none');
-hRegionL = patch(axSpatial,[fs0 1 1 fs0],[0 0 yTop0 yTop0], ...
+hRegionS = patch(axSpatial,[0 0 0 0],[0 0 yTop0 yTop0], ...
+    solidColor,'FaceAlpha',0.07,'EdgeColor','none');
+hRegionL = patch(axSpatial,[0 1 1 0],[0 0 yTop0 yTop0], ...
     [0.90 0.55 0.15],'FaceAlpha',0.09,'EdgeColor','none');
-hSpatialS = plot(axSpatial,[0 fs0],[k k],'-','LineWidth',3.0, ...
-    'Color',[0.06 0.46 0.43]);
-hSpatialL = plot(axSpatial,[fs0 1],[1 1],'--','LineWidth',2.4, ...
-    'Color',[0.76 0.25 0.05]);
+hSpatialS = plot(axSpatial,[0 0],[0 0],'-','LineWidth',3.0,'Color',solidColor);
+hSpatialL = plot(axSpatial,[0 1],[0 0],'--','LineWidth',2.4,'Color',liquidColor);
+hDelta = plot(axSpatial,[0 0],[0 0],'-','LineWidth',1.2, ...
+    'Color',[0.55 0.60 0.66],'Visible','off');
+hDeltaTick1 = plot(axSpatial,[0 0],[0 0],'-','LineWidth',1.2, ...
+    'Color',[0.55 0.60 0.66],'Visible','off');
+hDeltaTick2 = plot(axSpatial,[0 0],[0 0],'-','LineWidth',1.2, ...
+    'Color',[0.55 0.60 0.66],'Visible','off');
+hAvgLink = plot(axSpatial,[0 0],[0 0],'--','LineWidth',1.3, ...
+    'Color',solidColor,'Visible','off');
 hSpatialGuide = plot(axSpatial,[fs0 fs0],[0 yTop0],':','LineWidth',1.2, ...
-    'Color',[0.15 0.30 0.55]);
-hSpatialPtS = plot(axSpatial,fs0,k,'o','MarkerSize',7, ...
-    'MarkerFaceColor',[0.06 0.46 0.43],'MarkerEdgeColor','w');
+    'Color',guideColor);
+hConnS = plot(axSpatial,[0 0],[0 0],'-','LineWidth',2.8,'Color',solidColor, ...
+    'HandleVisibility','off');
+hConnL = plot(axSpatial,[0 0],[0 0],'-','LineWidth',2.8,'Color',liquidColor, ...
+    'HandleVisibility','off');
+hSpatialPtS = plot(axSpatial,fs0,1,'o','MarkerSize',7, ...
+    'MarkerFaceColor',solidColor,'MarkerEdgeColor','w');
 hSpatialPtL = plot(axSpatial,fs0,1,'o','MarkerSize',7, ...
-    'MarkerFaceColor',[0.76 0.25 0.05],'MarkerEdgeColor','w');
+    'MarkerFaceColor',liquidColor,'MarkerEdgeColor','w');
+hDeltaText = text(axSpatial,0.5,0.1,'','HorizontalAlignment','center', ...
+    'FontSize',9,'Color',[0.40 0.45 0.52],'Visible','off');
 hold(axSpatial,'off');
 
+% Tiller profile cache
+tillerKey = '';
+tillerX = [];
+tillerS = [];
+tillerI = [];
+
 % Initial render
+updatePanelLayout();
 updateDisplay();
 
 sld.ValueChangingFcn = @(src,event) updateDisplay(event.Value);
 sld.ValueChangedFcn  = @(src,event) updateDisplay(src.Value);
-modelDrop.ValueChangedFcn = @(src,event) updateDisplay();
+modelDrop.ValueChangedFcn = @(src,event) onModelChanged();
 kField.ValueChangedFcn    = @(src,event) updateDisplay();
 c0Field.ValueChangedFcn   = @(src,event) updateDisplay();
+peField.ValueChangedFcn   = @(src,event) updateDisplay();
+dsField.ValueChangedFcn   = @(src,event) updateDisplay();
+tfField.ValueChangedFcn   = @(src,event) updateDisplay();
+lamField.ValueChangedFcn  = @(src,event) updateDisplay();
+aCField.ValueChangedFcn   = @(src,event) updateDisplay();
+wtCheck.ValueChangedFcn   = @(src,event) updateDisplay();
 
     function tf = isScheil()
         tf = (modelDrop.ValueIndex == 2);
     end
 
-    function [csVal, clVal] = modelValues(fsVal, kVal, c0Val)
-        if isScheil()
-            base  = (1 - fsVal).^(kVal - 1);
-            clVal = c0Val * base;
-            csVal = kVal * clVal;
+    function tf = isTiller()
+        tf = (modelDrop.ValueIndex == 3);
+    end
+
+    function tf = isCK()
+        tf = (modelDrop.ValueIndex == 4);
+    end
+
+    function onModelChanged()
+        updatePanelLayout();
+        updateDisplay();
+    end
+
+    function updatePanelLayout()
+        if isTiller()
+            pg.Visible = 'on';
+            pg.RowHeight = {30,0,0,0,0,0};
+            ctrl.RowHeight = {32,22,42,30,30,52,66,50};
+            set([peLbl peField],'Visible','on');
+            set([dsLbl dsField tfLbl tfField lamLbl lamField ...
+                 aCLbl aCField wtCheck],'Visible','off');
+        elseif isCK()
+            pg.Visible = 'on';
+            pg.RowHeight = {0,30,30,30,30,26};
+            ctrl.RowHeight = {32,22,42,30,30,170,66,50};
+            set([peLbl peField],'Visible','off');
+            set([dsLbl dsField tfLbl tfField lamLbl lamField ...
+                 aCLbl aCField wtCheck],'Visible','on');
         else
-            den   = 1 - (1 - kVal) * fsVal;
-            csVal = kVal * c0Val ./ den;
-            clVal = c0Val ./ den;
+            pg.Visible = 'off';
+            ctrl.RowHeight = {32,22,42,30,30,0,66,50};
         end
     end
 
-    function avg = csAvgAt(fsVal, kVal, c0Val)
-        if ~isScheil()
-            [avg, ~] = modelValues(fsVal, kVal, c0Val);
+    % ── Clyne-Kurz ─────────────────────────────────────────
+    function a = alphaBase()
+        lam = max(lamField.Value*1e-6, 1e-12);
+        a = 4*(dsField.Value*1e-12)*tfField.Value / (lam^2);
+    end
+
+    function a = alphaEff()
+        a = alphaBase();
+        if wtCheck.Value
+            a = 2*(a + aCField.Value);
+        end
+    end
+
+    function b = betaCK(a)
+        if ~(a > 0)
+            b = 0;
+        elseif isinf(a)
+            b = 1;
+        else
+            b = 2*a*(1 - exp(-1/a)) - exp(-1/(2*a));
+        end
+    end
+
+    function y = ckCLNorm(fsVal,kVal)
+        y = zeros(size(fsVal));
+        if abs(kVal - 1) < 1e-12
+            y(:) = 1;
+            return;
+        end
+        b = betaCK(alphaEff());
+        q = b*kVal - 1;
+        if abs(q) < 1e-10
+            y = exp((1 - kVal)*fsVal);
+        else
+            y = (1 + q*fsVal).^((1 - kVal)/q);
+        end
+    end
+
+    function a = ckAvgNorm(fsVal,kVal)
+        cl = ckCLNorm(fsVal,kVal);
+        a = zeros(size(fsVal));
+        small = fsVal < 1e-9;
+        a(small) = kVal;
+        idx = ~small & fsVal < 1 - 1e-12;
+        a(idx) = (1 - (1 - fsVal(idx)).*cl(idx))./fsVal(idx);
+        a(fsVal >= 1 - 1e-12) = 1;
+    end
+
+    % ── Tiller et al. ──────────────────────────────────────
+    function [x,S,I] = tillerProfile(kVal,peVal)
+        key = sprintf('%.12g|%.12g',kVal,peVal);
+        if strcmp(key,tillerKey)
+            x = tillerX; S = tillerS; I = tillerI;
+            return;
+        end
+        N = 1400;
+        xmax = 0.9999;
+        dx = xmax/N;
+        x = (0:N)'*dx;
+        S = zeros(N+1,1);
+        I = zeros(N+1,1);
+        S(1) = kVal;
+        for ig = 2:N+1
+            xx = x(ig);
+            l = max(1 - xx, 1e-9);
+            sPrev = S(ig-1);
+            s = sPrev;
+            for it = 1:8
+                Ii = I(ig-1) + 0.5*(sPrev + s)*dx;
+                deficit = xx - Ii;
+                cStar = 1 + deficit*peVal/(1 - exp(-peVal*l));
+                s = kVal*cStar;
+            end
+            S(ig) = s;
+            I(ig) = I(ig-1) + 0.5*(sPrev + s)*dx;
+        end
+        tillerKey = key;
+        tillerX = x;
+        tillerS = S;
+        tillerI = I;
+    end
+
+    function v = tillerSAt(fsVal,kVal,peVal)
+        if fsVal >= 1 - 1e-12
+            v = Inf;
+            return;
+        end
+        [x,S,~] = tillerProfile(kVal,peVal);
+        v = interp1(x,S,min(max(fsVal,0),x(end)));
+    end
+
+    function v = tillerAvgAt(fsVal,kVal,peVal)
+        if fsVal < 1e-9
+            v = kVal;
+            return;
+        elseif fsVal >= 1 - 1e-12
+            v = 1;
+            return;
+        end
+        [x,~,I] = tillerProfile(kVal,peVal);
+        v = interp1(x,I,min(fsVal,x(end)))/fsVal;
+    end
+
+    function v = tillerCLAvgAt(fsVal,kVal,peVal)
+        if fsVal >= 1 - 1e-12
+            v = Inf;
+            return;
         elseif fsVal < 1e-9
-            avg = kVal * c0Val;
-        else
-            avg = c0Val * (1 - (1 - fsVal)^kVal) / fsVal;
+            v = 1;
+            return;
         end
+        [x,~,I] = tillerProfile(kVal,peVal);
+        Ii = interp1(x,I,min(fsVal,x(end)));
+        v = (1 - Ii)/(1 - fsVal);
     end
 
-    function top = yTopFor(kVal)
-        if isScheil()
-            if kVal < 1
-                % Scheil diverges at fs = 1 for k < 1; cap the view around
-                % fs = 0.95 so the early part of the curve stays readable.
-                top = max([1, 0.05^(kVal - 1)])*1.06;
+    % ── Axis limits ────────────────────────────────────────
+    function top = yTopMain()
+        kVal = kField.Value;
+        if isTiller()
+            peVal = peField.Value;
+            csCap = tillerSAt(0.99,kVal,peVal);
+            clCap = csCap/kVal;
+            top = min(25, 1.06*max([1 kVal csCap clCap]));
+        elseif isCK()
+            b = betaCK(alphaEff());
+            if b < 1e-6
+                if kVal < 1
+                    top = min(25, 1.06*max(1,0.05^(kVal-1)));
+                else
+                    top = 1.06*max(1,kVal);
+                end
             else
-                top = max([1, kVal])*1.06;
+                clCap = ckCLNorm(0.999,kVal);
+                top = min(25, 1.06*max([1 kVal clCap kVal*clCap ...
+                    ckAvgNorm(0.999,kVal)]));
+            end
+        elseif isScheil()
+            if kVal < 1
+                top = min(25, 1.06*max(1,0.05^(kVal-1)));
+            else
+                top = 1.06*max(1,kVal);
             end
         else
-            top = max([1, kVal, 1/kVal])*1.06;
+            top = 1.06*max([1 kVal 1/kVal]);
+        end
+        if ~isfinite(top) || top <= 0
+            top = 2;
         end
     end
 
-    function vals = solidProfileAt(x, kVal, c0Val, fsNow)
-        if isScheil()
-            vals = kVal * c0Val * (1 - x).^(kVal - 1);
-        else
-            [csNow, ~] = modelValues(fsNow, kVal, c0Val);
-            vals = csNow * ones(size(x));
+    function top = yTopSpatial(csN,clN,avgN)
+        vals = [1 kField.Value csN clN avgN];
+        vals = vals(isfinite(vals));
+        top = min(25, 1.12*max(vals));
+        if ~isfinite(top) || top <= 0
+            top = 2;
         end
     end
 
@@ -247,7 +505,7 @@ c0Field.ValueChangedFcn   = @(src,event) updateDisplay();
         elseif isnan(v)
             s = char(8212);            % em dash
         else
-            s = sprintf('%.3f', v);
+            s = sprintf('%.3f',v);
         end
     end
 
@@ -258,59 +516,256 @@ c0Field.ValueChangedFcn   = @(src,event) updateDisplay();
 
         kNow  = kField.Value;
         c0Now = c0Field.Value;
-        fsNow = max(0, min(1, fsRequested));
-        scheil = isScheil();
-        singular = scheil && kNow < 1 && fsNow > 1 - 1e-9;
+        fsNow = max(0,min(1,fsRequested));
 
-        [csNow, clNow] = modelValues(fsNow, kNow, c0Now);
-        csAvgNow = csAvgAt(fsNow, kNow, c0Now);
+        % ── Current compositions, normalized to C0 ──
+        if isTiller()
+            csN = tillerSAt(fsNow,kNow,peField.Value);
+            clN = csN/kNow;
+            avgN = tillerAvgAt(fsNow,kNow,peField.Value);
+            clAvgN = tillerCLAvgAt(fsNow,kNow,peField.Value);
+        elseif isCK()
+            clN = ckCLNorm(fsNow,kNow);
+            csN = kNow*clN;
+            avgN = ckAvgNorm(fsNow,kNow);
+            clAvgN = clN;
+        elseif isScheil()
+            clN = (1 - fsNow)^(kNow - 1);
+            csN = kNow*clN;
+            if fsNow < 1e-9
+                avgN = kNow;
+            else
+                avgN = (1 - (1 - fsNow)^kNow)/fsNow;
+            end
+            clAvgN = clN;
+        else
+            den = 1 - (1 - kNow)*fsNow;
+            csN = kNow/den;
+            clN = 1/den;
+            avgN = csN;
+            clAvgN = clN;
+        end
 
-        % Curves (non-finite points are skipped so Inf/NaN are not drawn)
-        [csCurve, clCurve] = modelValues(fsGrid, kNow, c0Now);
+        csNow = csN*c0Now;
+        clNow = clN*c0Now;
+        avgNow = avgN*c0Now;
+        clAvgNow = clAvgN*c0Now;
+
+        singular = fsNow >= 1 - 1e-9 && ...
+            ((isScheil() && kNow < 1) || isTiller() || ...
+             (isCK() && betaCK(alphaEff()) < 1e-9 && kNow < 1));
+
+        % ── Main curves ──
+        if isTiller()
+            [tx,tS,~] = tillerProfile(kNow,peField.Value);
+            csCurve = interp1(tx,tS,fsGrid);
+            clCurve = csCurve/kNow;
+        elseif isCK()
+            clCurve = ckCLNorm(fsGrid,kNow);
+            csCurve = kNow*clCurve;
+        elseif isScheil()
+            base = (1 - fsGrid).^(kNow - 1);
+            clCurve = base;
+            csCurve = kNow*base;
+        else
+            den = 1 - (1 - kNow)*fsGrid;
+            csCurve = kNow./den;
+            clCurve = 1./den;
+        end
         csCurve(~isfinite(csCurve)) = NaN;
         clCurve(~isfinite(clCurve)) = NaN;
-        set(hCS,'YData',csCurve/c0Now);
-        set(hCL,'YData',clCurve/c0Now);
+        set(hCS,'YData',csCurve);
+        set(hCL,'YData',clCurve);
 
-        % Current markers and guide
-        csPt = csNow/c0Now;
-        clPt = clNow/c0Now;
+        yTop = yTopMain();
+        csPt = csN;
+        clPt = clN;
         if ~isfinite(csPt), csPt = NaN; end
         if ~isfinite(clPt), clPt = NaN; end
         set(hPtS,'XData',fsNow,'YData',csPt);
         set(hPtL,'XData',fsNow,'YData',clPt);
-
-        yTop = yTopFor(kNow);
         set(hGuide,'XData',[fsNow fsNow],'YData',[0 yTop]);
         ylim(ax,[0 yTop]);
 
-        % Spatial profile along the bar
-        set(hRegionS,'XData',[0 fsNow fsNow 0],'YData',[0 0 yTop yTop]);
-        set(hRegionL,'XData',[fsNow 1 1 fsNow],'YData',[0 0 yTop yTop]);
+        % ── Tiller stage bands ──
+        if isTiller()
+            peVal = peField.Value;
+            xInit = min(0.45, 1/(kNow*peVal));
+            xFinal = max(0.55, 1 - 1/peVal);
+            if xFinal <= xInit
+                xFinal = min(1, xInit + 1e-3);
+            end
+            edges = [0 xInit xFinal 1];
+            for jb = 1:3
+                xe = edges(jb); xf = edges(jb+1);
+                set(hBand(jb),'XData',[xe xf xf xe], ...
+                    'YData',[0 0 yTop yTop],'Visible','on');
+                set(hBandText(jb),'Position',[(xe+xf)/2 0.94*yTop], ...
+                    'Visible','on');
+            end
+        else
+            for jb = 1:3
+                set(hBand(jb),'Visible','off');
+                set(hBandText(jb),'Visible','off');
+            end
+        end
+
+        % ── Spatial profile ──
+        yTopS = yTopSpatial(csN,clN,avgN);
+        set(hRegionS,'XData',[0 fsNow fsNow 0], ...
+            'YData',[0 0 yTopS yTopS]);
+        set(hRegionL,'XData',[fsNow 1 1 fsNow], ...
+            'YData',[0 0 yTopS yTopS]);
 
         if fsNow < 1e-9
             xSolid = [0 0];
+            ySolid = [NaN NaN];
+        elseif isTiller()
+            [tx,tS,~] = tillerProfile(kNow,peField.Value);
+            xSolid = linspace(0,fsNow,220);
+            ySolid = interp1(tx,tS,xSolid);
+        elseif isCK()
+            xSolid = [0 fsNow];
+            ySolid = [avgN avgN];
+        elseif isScheil()
+            xSolid = linspace(0,fsNow,220);
+            ySolid = kNow*(1 - xSolid).^(kNow - 1);
         else
-            xSolid = linspace(0, fsNow, 180);
+            xSolid = [0 fsNow];
+            ySolid = [csN csN];
         end
-        ySolid = solidProfileAt(xSolid, kNow, c0Now, fsNow)/c0Now;
         ySolid(~isfinite(ySolid)) = NaN;
         set(hSpatialS,'XData',xSolid,'YData',ySolid);
 
-        if fsNow < 1 - 1e-9 && isfinite(clPt)
-            set(hSpatialL,'XData',[fsNow 1],'YData',[clPt clPt]);
-            set(hSpatialPtL,'XData',fsNow,'YData',clPt);
+        % Liquid profile
+        if fsNow < 1 - 1e-9 && isfinite(clN)
+            if isTiller()
+                z = linspace(0,1-fsNow,140);
+                yLiquid = 1 + (clN - 1)*exp(-peField.Value*z);
+                xLiquid = fsNow + z;
+                yLiquid(~isfinite(yLiquid)) = NaN;
+                set(hSpatialL,'XData',xLiquid,'YData',yLiquid, ...
+                    'LineStyle','-','DisplayName','Liquid, C_L(z)');
+            else
+                set(hSpatialL,'XData',[fsNow 1],'YData',[clN clN], ...
+                    'LineStyle','--','DisplayName','Liquid, C_L');
+            end
+            set(hSpatialPtL,'XData',fsNow,'YData',clN,'Visible','on');
         else
             set(hSpatialL,'XData',NaN,'YData',NaN);
-            set(hSpatialPtL,'XData',NaN,'YData',NaN);
+            set(hSpatialPtL,'XData',NaN,'YData',NaN,'Visible','off');
         end
 
         set(hSpatialPtS,'XData',fsNow,'YData',csPt);
-        set(hSpatialGuide,'XData',[fsNow fsNow],'YData',[0 yTop]);
-        ylim(axSpatial,[0 yTop]);
+        set(hSpatialGuide,'XData',[fsNow fsNow],'YData',[0 yTopS]);
 
-        % Labels and readout
-        if scheil
+        % Solid-liquid connector at the interface: green then orange.
+        if isfinite(csPt) && isfinite(clPt)
+            yMid = (csPt + clPt)/2;
+            set(hConnS,'XData',[fsNow fsNow],'YData',[csPt yMid]);
+            set(hConnL,'XData',[fsNow fsNow],'YData',[yMid clPt]);
+        else
+            set(hConnS,'XData',NaN,'YData',NaN);
+            set(hConnL,'XData',NaN,'YData',NaN);
+        end
+
+        % Tiller boundary-layer thickness marker
+        if isTiller() && fsNow < 1 - 1e-9
+            delta = 1/peField.Value;
+            zEnd = min(delta, 1 - fsNow);
+            if zEnd > 0.004
+                yD = 0.07*yTopS;
+                set(hDelta,'XData',[fsNow fsNow+zEnd], ...
+                    'YData',[yD yD],'Visible','on');
+                set(hDeltaTick1,'XData',[fsNow fsNow], ...
+                    'YData',[yD-0.02*yTopS yD+0.02*yTopS],'Visible','on');
+                set(hDeltaTick2,'XData',[fsNow+zEnd fsNow+zEnd], ...
+                    'YData',[yD-0.02*yTopS yD+0.02*yTopS],'Visible','on');
+                if zEnd < delta
+                    lbl = 'delta/L';
+                else
+                    lbl = sprintf('delta/L = %.3f',delta);
+                end
+                set(hDeltaText,'Position',[fsNow+zEnd/2 yD+0.05*yTopS], ...
+                    'String',lbl,'Visible','on');
+            else
+                set([hDelta hDeltaTick1 hDeltaTick2 hDeltaText],'Visible','off');
+            end
+        else
+            set([hDelta hDeltaTick1 hDeltaTick2 hDeltaText],'Visible','off');
+        end
+
+        % Clyne-Kurz: link the back-diffused average to the interface value
+        if isCK() && isfinite(csPt) && isfinite(avgN) && ...
+                abs(csN - avgN) > 0.01
+            set(hAvgLink,'XData',[fsNow fsNow],'YData',[avgN csN], ...
+                'Visible','on');
+        else
+            set(hAvgLink,'Visible','off');
+        end
+
+        ylim(axSpatial,[0 yTopS]);
+
+        % ── Labels, equations, readout ──
+        if isTiller()
+            head.Text = 'SOLUTE REDISTRIBUTION  |  TILLER ET AL.';
+            eq.Text = {'C_S(x) = C_0[k + (1-k)(1 - e^{-k Pe x})]', ...
+                       'C_L(z) = C_0[1 + (1-k)/k e^{-Pe z}],  delta/L = 1/Pe'};
+            note.Text = ['No solid diffusion (D_S = 0), no liquid mixing. ' ...
+                'Initial transient -> steady C_S = C_0 -> final transient.'];
+            hCS.DisplayName = 'Solid (interface), C_S';
+            title(axSpatial,sprintf('Along bar: solid profile and liquid boundary layer | %.1f%% solid', ...
+                100*fsNow));
+            if fsNow >= 1 - 1e-9
+                balanceText = 'Mass balance: liquid singular at f_s = 1';
+            else
+                bals = fsNow*avgN + (1-fsNow)*clAvgN;
+                balanceText = sprintf('Mass balance: %.6f wt.%%  (C_0 = %.3f)', ...
+                    bals*c0Now, c0Now);
+            end
+            readout.Value = {
+                'Model   Tiller et al. (no solid diffusion, no liquid mixing)'
+                sprintf('Solid (interface)  C_S* = %s wt.%%',fmtNum(csNow))
+                sprintf('Average solid      C_S,avg = %s wt.%%',fmtNum(avgNow))
+                sprintf('Liquid (interface) C_L* = %s wt.%%',fmtNum(clNow))
+                sprintf('Average liquid     C_L,avg = %s wt.%%',fmtNum(clAvgNow))
+                sprintf('Boundary layer     delta/L = %.4f',1/peField.Value)
+                balanceText
+                };
+        elseif isCK()
+            aB = alphaBase();
+            aE = alphaEff();
+            bCK = betaCK(aE);
+            head.Text = 'SOLUTE REDISTRIBUTION  |  CLYNE-KURZ';
+            eq.Text = {'C_L/C_0 = [1 - (1-beta k) f_s]^{(k-1)/(1-beta k)}', ...
+                       'beta = 2a(1 - e^{-1/a}) - e^{-1/(2a)}'};
+            if wtCheck.Value
+                note.Text = sprintf(['Finite back diffusion; mixed liquid. ' ...
+                    'alpha = %.4g, alpha+ = %.4g, beta = %.4g (Won-Thomas).'], ...
+                    aB, aE, bCK);
+            else
+                note.Text = sprintf(['Finite back diffusion; mixed liquid. ' ...
+                    'alpha = %.4g, beta = %.4g.'],aB,bCK);
+            end
+            hCS.DisplayName = 'Solid (interface), C_S';
+            title(axSpatial,sprintf('Along bar: back-diffused average solid | %.1f%% solid', ...
+                100*fsNow));
+            if singular
+                balanceText = 'Mass balance: liquid singular at f_s = 1';
+            else
+                bals = fsNow*avgN + (1-fsNow)*clAvgN;
+                balanceText = sprintf('Mass balance: %.6f wt.%%  (C_0 = %.3f)', ...
+                    bals*c0Now, c0Now);
+            end
+            readout.Value = {
+                'Model   Clyne-Kurz (finite back diffusion, mixed liquid)'
+                sprintf('Solid (interface)  C_S* = %s wt.%%',fmtNum(csNow))
+                sprintf('Average solid      C_S,avg = %s wt.%%',fmtNum(avgNow))
+                sprintf('Liquid             C_L = %s wt.%%',fmtNum(clNow))
+                sprintf('alpha = %.5g   beta = %.5g',aE,bCK)
+                balanceText
+                };
+        elseif isScheil()
             head.Text = 'SOLUTE REDISTRIBUTION  |  SCHEIL-GULLIVER';
             eq.Text = {'C_S = k C_0 (1 - f_s)^(k-1)', ...
                        'C_L =     C_0 (1 - f_s)^(k-1)'};
@@ -320,17 +775,16 @@ c0Field.ValueChangedFcn   = @(src,event) updateDisplay();
             title(axSpatial,sprintf('Along bar: cored solid | %.1f%% solid', ...
                 100*fsNow));
             if singular
-                balanceText = sprintf( ...
-                    'Mass balance: singular at f_s = 1 (C_L -> inf)');
+                balanceText = 'Mass balance: singular at f_s = 1 (C_L -> inf)';
             else
-                balance = fsNow*csAvgNow + (1-fsNow)*clNow;
+                bals = fsNow*avgN + (1-fsNow)*clAvgN;
                 balanceText = sprintf('Mass balance: %.6f wt.%%  (C_0 = %.3f)', ...
-                    balance, c0Now);
+                    bals*c0Now, c0Now);
             end
             readout.Value = {
                 'Model   Scheil-Gulliver (D_S = 0, D_L -> inf)'
                 sprintf('Solid (interface)  C_S* = %s wt.%%',fmtNum(csNow))
-                sprintf('Average solid      C_S,avg = %s wt.%%',fmtNum(csAvgNow))
+                sprintf('Average solid      C_S,avg = %s wt.%%',fmtNum(avgNow))
                 sprintf('Liquid             C_L = %s wt.%%',fmtNum(clNow))
                 balanceText
                 };
@@ -342,13 +796,14 @@ c0Field.ValueChangedFcn   = @(src,event) updateDisplay();
             hCS.DisplayName = 'Solid, C_S';
             title(axSpatial,sprintf('Along bar: %.1f%% solid | %.1f%% liquid', ...
                 100*fsNow,100*(1-fsNow)));
-            balance = fsNow*csNow + (1-fsNow)*clNow;
+            bals = fsNow*avgN + (1-fsNow)*clAvgN;
+            balanceText = sprintf('Mass balance: %.6f wt.%%  (C_0 = %.3f)', ...
+                bals*c0Now, c0Now);
             readout.Value = {
                 'Model   Equilibrium (lever rule)'
                 sprintf('Solid   C_S = %s wt.%%',fmtNum(csNow))
                 sprintf('Liquid  C_L = %s wt.%%',fmtNum(clNow))
-                sprintf('Mass balance: %.6f wt.%%  (C_0 = %.3f)', ...
-                    balance, c0Now)
+                balanceText
                 };
         end
 

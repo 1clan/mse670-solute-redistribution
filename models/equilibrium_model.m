@@ -1,0 +1,31 @@
+function [Cs, Cl, CsAvg, ClAvg] = equilibrium_model(k, c0, fs)
+%EQUILIBRIUM_MODEL  Lever-rule solute redistribution (complete diffusion).
+%
+%   [Cs, Cl, CsAvg, ClAvg] = equilibrium_model(k, c0, fs)
+%
+%   Complete diffusion in both solid and liquid keeps both phases uniform.
+%   Local equilibrium is k = Cs/Cl, and the lever rule gives
+%
+%       Cs = k*c0 / (1 - (1-k)*fs)
+%       Cl =    c0 / (1 - (1-k)*fs)
+%
+%   Inputs
+%       k   partition coefficient, k > 0 (not restricted to k <= 1)
+%       c0  nominal composition
+%       fs  solid fraction, 0 <= fs <= 1 (scalar or array)
+%
+%   Outputs
+%       Cs      solid composition
+%       Cl      liquid composition
+%       CsAvg   average solid composition (= Cs for equilibrium)
+%       ClAvg   average liquid composition (= Cl for equilibrium)
+%
+%   Example
+%       [Cs, Cl] = equilibrium_model(0.3, 1.0, 0.5)   % Cs = 0.4615, Cl = 1.5385
+
+den = 1 - (1 - k).*fs;
+Cs = (k .* c0) ./ den;
+Cl = c0 ./ den;
+CsAvg = Cs;
+ClAvg = Cl;
+end
