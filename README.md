@@ -24,6 +24,8 @@ Move the **solid fraction `f_s`** slider from 0 to 1 and watch:
 - the **solid–liquid connector** at the interface (green to orange),
 - the mass-balance check `f_s C_S,avg + (1 − f_s) C_L,avg = C_0`.
 
+Use the **Graph view** switch to choose between `Auto zoom` (the along-bar chart rescales for readability) and `Fixed scale` (the axes, grid, and background stay put and only the plotted data changes as the slider moves).
+
 ## Models
 
 Pick a model with the 2×2 buttons above the controls. `k` can be any positive number — it is **not** limited to `0 < k ≤ 1`.
@@ -193,6 +195,7 @@ outW = won_thomas_model(0.3, 1.0, 1e-13, 100, 20e-6, 0.9, 0.1);
 | Control | Meaning |
 |---|---|
 | Model | Equilibrium, Scheil–Gulliver, Tiller et al., or Clyne–Kurz. |
+| Graph view | `Auto zoom` rescales the along-bar chart as `f_s` changes; `Fixed scale` locks the axes, grid, and background so only the plotted data moves with the slider. |
 | `f_s` slider | Solid fraction, from 0 (all liquid) to 1 (all solid). |
 | `k` | Partition coefficient, `k = C_S*/C_L*`. Any value `0.01 ≤ k ≤ 100`; not restricted to `k ≤ 1`. Default 0.30 (illustrative). |
 | `C_0` | Nominal solute concentration in wt.%. Default 1.0 wt.% (illustrative). |

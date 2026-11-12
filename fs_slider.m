@@ -68,9 +68,9 @@ head.FontSize = 18; head.FontWeight = 'bold';
 head.FontColor = [0.06 0.13 0.20];
 
 % Control panel
-ctrl = uigridlayout(g,[8 2]);
+ctrl = uigridlayout(g,[9 2]);
 ctrl.Layout.Row = 2; ctrl.Layout.Column = 1;
-ctrl.RowHeight = {32,22,42,30,30,0,66,50};
+ctrl.RowHeight = {32,22,42,30,30,0,28,66,40};
 ctrl.ColumnWidth = {'1x',120};
 ctrl.Padding = [0 0 0 0];
 ctrl.RowSpacing = 8;
@@ -164,8 +164,16 @@ wtCheck = uicheckbox(pg,'Text','Won-Thomas: alpha+ = 2(alpha + alpha_C)', ...
     'Value',false);
 wtCheck.Layout.Row = 6; wtCheck.Layout.Column = [1 2];
 
+lblView = uilabel(ctrl);
+lblView.Layout.Row = 7; lblView.Layout.Column = 1;
+lblView.Text = 'Graph view';
+
+viewDrop = uidropdown(ctrl, ...
+    'Items',{'Auto zoom','Fixed scale'},'Value','Auto zoom');
+viewDrop.Layout.Row = 7; viewDrop.Layout.Column = 2;
+
 eq = uilabel(ctrl);
-eq.Layout.Row = 7; eq.Layout.Column = [1 2];
+eq.Layout.Row = 8; eq.Layout.Column = [1 2];
 eq.Text = {'C_S = k C_0 / [1 - (1-k) f_s]', ...
            'C_L =     C_0 / [1 - (1-k) f_s]'};
 eq.FontName = 'Consolas';
@@ -175,7 +183,7 @@ eq.HorizontalAlignment = 'center';
 eq.BackgroundColor = [0.96 0.97 0.99];
 
 note = uilabel(ctrl);
-note.Layout.Row = 8; note.Layout.Column = [1 2];
+note.Layout.Row = 9; note.Layout.Column = [1 2];
 note.Text = 'Complete diffusion in solid and liquid (equilibrium limit).';
 note.FontSize = 11;
 note.FontColor = [0.35 0.42 0.50];
@@ -301,6 +309,7 @@ tfField.ValueChangedFcn   = @(src,event) updateDisplay();
 lamField.ValueChangedFcn  = @(src,event) updateDisplay();
 aCField.ValueChangedFcn   = @(src,event) updateDisplay();
 wtCheck.ValueChangedFcn   = @(src,event) updateDisplay();
+viewDrop.ValueChangedFcn  = @(src,event) updateDisplay();
 
     function tf = isScheil()
         tf = (modelDrop.ValueIndex == 2);
@@ -314,6 +323,10 @@ wtCheck.ValueChangedFcn   = @(src,event) updateDisplay();
         tf = (modelDrop.ValueIndex == 4);
     end
 
+    function tf = isFixedView()
+        tf = strcmp(viewDrop.Value,'Fixed scale');
+    end
+
     function onModelChanged()
         updatePanelLayout();
         updateDisplay();
@@ -323,20 +336,20 @@ wtCheck.ValueChangedFcn   = @(src,event) updateDisplay();
         if isTiller()
             pg.Visible = 'on';
             pg.RowHeight = {30,0,0,0,0,0};
-            ctrl.RowHeight = {32,22,42,30,30,52,66,50};
+            ctrl.RowHeight = {32,22,42,30,30,52,28,66,40};
             set([peLbl peField],'Visible','on');
             set([dsLbl dsField tfLbl tfField lamLbl lamField ...
                  aCLbl aCField wtCheck],'Visible','off');
         elseif isCK()
             pg.Visible = 'on';
             pg.RowHeight = {0,30,30,30,30,26};
-            ctrl.RowHeight = {32,22,42,30,30,170,66,50};
+            ctrl.RowHeight = {32,22,42,30,30,170,28,66,40};
             set([peLbl peField],'Visible','off');
             set([dsLbl dsField tfLbl tfField lamLbl lamField ...
                  aCLbl aCField wtCheck],'Visible','on');
         else
             pg.Visible = 'off';
-            ctrl.RowHeight = {32,22,42,30,30,0,66,50};
+            ctrl.RowHeight = {32,22,42,30,30,0,28,66,40};
         end
     end
 
@@ -613,6 +626,9 @@ wtCheck.ValueChangedFcn   = @(src,event) updateDisplay();
 
         % ── Spatial profile ──
         yTopS = yTopSpatial(csN,clN,avgN);
+        if isFixedView()
+            yTopS = yTopMain();
+        end
         set(hRegionS,'XData',[0 fsNow fsNow 0], ...
             'YData',[0 0 yTopS yTopS]);
         set(hRegionL,'XData',[fsNow 1 1 fsNow], ...
