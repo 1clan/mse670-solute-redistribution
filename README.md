@@ -18,6 +18,8 @@ Both versions provide the same controls: `f_s`, `T`, and logarithmic `k`/`C₀` 
 
 **Live demo:** https://1clan.github.io/mse670-solute-redistribution/
 
+> **New here?** Read [`SITE_OVERVIEW.md`](SITE_OVERVIEW.md) for a plain-language explanation of what the site is, who it is for, and what each part of the page shows.
+
 ![Screenshot of the slider app](preview.png)
 
 Move the **solid fraction `f_s`** slider from 0 to 1 and watch:
@@ -416,7 +418,8 @@ fs_slider_project/
 │   ├── clyne_kurz_model.m     # back-diffusion model
 │   └── won_thomas_model.m     # coarsening-corrected Clyne–Kurz
 ├── preview.png                # screenshot used in this README
-└── README.md                  # this file
+├── README.md                  # detailed model documentation and equations
+└── SITE_OVERVIEW.md           # plain-language guide to what the site is about
 ```
 
 `index.html` has no external dependencies, so it also works offline. The MATLAB files use base MATLAB only.
