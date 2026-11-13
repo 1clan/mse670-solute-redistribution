@@ -1,0 +1,306 @@
+% =====================================================================
+%  TECHNICAL SUMMARY -- Solute redistribution slider apps
+%  Compile with:  pdflatex TECHNICAL_SUMMARY.tex   (run twice)
+%  or:            tectonic TECHNICAL_SUMMARY.tex
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=2.2cm,top=2.4cm,bottom=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{microtype}
+
+\hypersetup{hidelinks}
+\captionsetup{font=small,labelfont=bf,skip=4pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.4em}
+\setlength{\emergencystretch}{2em}
+\newcommand{\wtpct}{\,\mathrm{wt.\%}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+\begin{document}
+
+\begin{center}
+{\Large\bfseries Solute Redistribution in Solidification}\\[2pt]
+{\large Technical Summary}\\[5pt]
+{\small Prathamesh Deepak Ladhe \quad$\vert$\quad MSE 670 --- Solidification
+\quad$\vert$\quad \today}
+\end{center}
+
+\vspace{-0.3em}
+
+\section*{1.\ \ Scope and material data}
+
+A one-dimensional bar of nominal composition $C_0=4.8\wtpct$ Cu in Al is
+solidified from one end. At solid fraction $f_s$ the interface is planar and
+local equilibrium holds. Four limiting models are compared: equilibrium (lever
+rule), Scheil--Gulliver, no solid diffusion with limited liquid diffusion, and
+Clyne--Kurz with an optional Won--Thomas coarsening correction. A temperature
+slider adds a sensitivity study: it moves the Al--Cu tie-line and rescales
+$k$, $D_S$ and $D_L$ from quadratic phase-diagram fits and Arrhenius
+diffusion.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}p{0.23\textwidth}p{0.21\textwidth}p{0.48\textwidth}@{}}
+\toprule
+\textbf{Quantity} & \textbf{Value} & \textbf{Source / justification}\\
+\midrule
+$C_0$ & $4.8$ wt.\% Cu & nominal alloy; MSE 670 notes, pp.~1--3\\
+$k$ & $0.173$ at $648\,^\circ$C & Al--Cu phase diagram; notes\\
+$T_m$ & $660.3\,^\circ$C & melting point of pure Al\\
+$T_{\text{eut}}$ & $548\,^\circ$C & Al--Cu eutectic / solidus\\
+$D_{S,\text{ref}}$ & $4.8\times10^{-15}$ m$^2$/s & notes and standard Al--Cu data\\
+$D_{L,\text{ref}}$ & $2.4\times10^{-9}$ m$^2$/s & notes and standard Al--Cu data\\
+$v$ & $20\,\mu$m/s & process input\\
+$t_f$ & $100$ s & local solidification time\\
+$\lambda_2$ & $20\,\mu$m & secondary dendrite-arm spacing\\
+$\alpha_C$ & $0.10$ & Won--Thomas coarsening constant\\
+$L$ & $1$ mm & length scale in $\delta/L$\\
+$Q_S,\ Q_L$ & $130,\ 30$ kJ/mol & Arrhenius activation energies\\
+$T_{\text{ref}}$ & $648\,^\circ$C & coupling anchor\\
+\bottomrule
+\end{tabular}
+\caption{Reference material and process data.}
+\label{tab:data}
+\end{table}
+
+The tie-line fits use the Al--Cu anchors $(0,660.3)$, $(4.8,648)$, $(33,548)$
+for the liquidus and $(0,660.3)$, $(0.8304,648)$, $(5.65,548)$ for the
+solidus, with compositions in wt.\% and temperatures in $^\circ$C. Values are
+standard Al--Cu approximations used in the MSE 670 notes and in Kurz and
+Fisher; they are not a CALPHAD assessment.
+
+\section*{2.\ \ Assumptions}
+
+\textbf{Common to all four models.}
+\begin{itemize}[leftmargin=1.3em,itemsep=0.05em,topsep=0.1em]
+  \item One-dimensional growth with a planar interface advancing at constant
+        velocity; constant density and no convection.
+  \item Local equilibrium at the interface, $C_S^*=k\,C_L^*$.
+  \item Fick diffusion with one diffusivity per phase.
+  \item $k$ is constant within one model evaluation. The temperature coupling
+        deliberately relaxes this as a sensitivity study.
+  \item The terminal eutectic reaction is not modelled. The $33\wtpct$ point
+        is used only as a phase-diagram anchor.
+\end{itemize}
+
+\textbf{Model-specific.}
+\begin{itemize}[leftmargin=1.3em,itemsep=0.05em,topsep=0.1em]
+  \item \emph{Equilibrium:} infinite diffusion in both phases; both phases stay
+        uniform.
+  \item \emph{Scheil--Gulliver:} $D_S=0$ and the liquid is perfectly mixed.
+  \item \emph{Limited liquid:} $D_S=0$ and no liquid mixing; a steady diffusion
+        boundary layer forms ahead of the interface. Initial and final
+        transients are captured by a mass-conserving sweep, but the interface
+        is still assumed planar.
+  \item \emph{Clyne--Kurz:} finite back diffusion in the solid with a mixed
+        liquid. It is an analytical approximation and does not resolve a
+        spatial profile. The Won--Thomas correction is approximate; its
+        empirical arm-spacing fits are steel-specific and are not used.
+\end{itemize}
+
+\section*{3.\ \ Equations}
+
+\subsection*{3.1\ \ Interface condition and solute balance}
+\begin{equation}
+C_S^*=k\,C_L^*,
+\qquad
+f_s\,\overline{C_S}+(1-f_s)\,\overline{C_L}=C_0.
+\label{eq:balance}
+\end{equation}
+
+\subsection*{3.2\ \ Equilibrium (lever rule)}
+\begin{equation}
+C_S=\frac{kC_0}{1-(1-k)f_s},
+\qquad
+C_L=\frac{C_0}{1-(1-k)f_s}.
+\label{eq:lever}
+\end{equation}
+
+\subsection*{3.3\ \ Scheil--Gulliver}
+\begin{equation}
+C_L=C_0(1-f_s)^{k-1},
+\qquad
+C_S^*=kC_L,
+\qquad
+\overline{C_S}=\frac{C_0\left[1-(1-f_s)^k\right]}{f_s}.
+\label{eq:scheil}
+\end{equation}
+For $k<1$ both interface compositions diverge as $f_s\to1$; the apps cap the
+plotted range and flag the singularity.
+
+\subsection*{3.4\ \ No solid diffusion, limited liquid diffusion}
+Ahead of a planar interface moving at $v$, the steady boundary layer is
+\begin{equation}
+C_L(z)=C_0+\left(C_L^*-C_0\right)e^{-z/\delta},
+\qquad
+\frac{\delta}{L}=\frac{D_L}{vL}.
+\label{eq:boundary}
+\end{equation}
+At steady state $C_L^*=C_0/k$ and the solid grows at $C_S=C_0$. Over the whole
+bar the implementation integrates the normalised solid profile
+$S(x)=C_S(x)/C_0$ from local equilibrium plus global conservation. With
+$I(f_s)=\int_0^{f_s}S\,dx$,
+\begin{equation}
+\frac{C_L^*}{C_0}=1+\frac{f_s-I(f_s)}
+{\delta\left(1-e^{-(1-f_s)/\delta}\right)},
+\qquad
+S(f_s)=k\,\frac{C_L^*}{C_0}.
+\label{eq:limited}
+\end{equation}
+Equation~\eqref{eq:limited} is solved on a uniform grid by the trapezoidal rule
+with eight fixed-point iterations per node ($N=1400$ intervals in MATLAB,
+$N=2200$ in the browser). This reproduces the initial transient, the
+$C_S=C_0$ plateau and the final spike.
+
+\subsection*{3.5\ \ Clyne--Kurz}
+\begin{equation}
+\alpha=\frac{4D_St_f}{\lambda_2^2},
+\qquad
+\beta=2\alpha\left(1-e^{-1/\alpha}\right)-e^{-1/(2\alpha)},
+\label{eq:beta}
+\end{equation}
+\begin{equation}
+\frac{C_L}{C_0}=\left[1-(1-\beta k)f_s\right]^{\frac{k-1}{1-\beta k}},
+\qquad
+C_S^*=kC_L,
+\qquad
+\overline{C_S}=\frac{C_0-(1-f_s)C_L}{f_s}.
+\label{eq:ck}
+\end{equation}
+The limits are $\beta\to0$ (Scheil) and $\beta\to1$ (equilibrium). The cases
+$k=1$ and $1-\beta k=0$ are evaluated separately to avoid $0/0$.
+
+\subsection*{3.6\ \ Won--Thomas coarsening correction}
+\begin{equation}
+\alpha^{+}=2\left(\alpha+\alpha_C\right),
+\label{eq:wt}
+\end{equation}
+after which Eq.~\eqref{eq:beta} is evaluated with $\alpha^{+}$.
+
+\subsection*{3.7\ \ Temperature coupling}
+The liquidus and solidus fits are
+\begin{align}
+T&=-0.0298060391\,C_L^2-2.41943101\,C_L+660.3,\\
+T&=-1.05070285\,C_S^2-13.93963508\,C_S+660.3,
+\end{align}
+and the physical root is $C(T)=(-b-\sqrt{b^2-4a(c-T)})/(2a)$ with $a<0$,
+$b<0$, $c=660.3$. The partition coefficient follows the tie-line:
+\begin{equation}
+k(T)=\frac{C_S(T)}{C_L(T)},
+\label{eq:kT}
+\end{equation}
+with $k=k_{\text{ref}}$ when $C_L<10^{-8}$. Both diffusivities use Arrhenius
+scaling anchored at $T_{\text{ref}}=648\,^\circ$C:
+\begin{equation}
+D(T)=D_{\text{ref}}\exp\!\left[-\frac{Q}{R}
+\left(\frac{1}{T+273.15}-\frac{1}{T_{\text{ref}}+273.15}\right)\right].
+\label{eq:arrhenius}
+\end{equation}
+
+\section*{4.\ \ Results and discussion}
+
+Table~\ref{tab:models} compares the models at two solid fractions. Every entry
+satisfies the solute balance in Eq.~\eqref{eq:balance} to displayed precision.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Model} & $C_S(0.5)$ & $C_L(0.5)$ & $C_S(0.9)$ & $C_L(0.9)$\\
+\midrule
+Equilibrium          & 1.42 & 8.18  & 3.25 & 18.77\\
+Scheil--Gulliver     & 1.47 & 8.52  & 5.58 & 32.23\\
+Clyne--Kurz          & 1.47 & 8.51  & 5.53 & 31.94\\
+Won--Thomas          & 1.45 & 8.40  & 4.37 & 25.24\\
+Limited liquid       & 2.90 & 16.75 & 5.54 & 32.01\\
+\bottomrule
+\end{tabular}
+\caption{Interface compositions in wt.\% at $f_s=0.5$ and $0.9$ for the
+reference data of Table~\ref{tab:data}.}
+\label{tab:models}
+\end{table}
+
+At the default state ($f_s=0.5$) the lever rule gives $C_S=1.416$ and
+$C_L=8.184\wtpct$, the lowest liquid enrichment of the four models. Scheil and
+Clyne--Kurz are almost identical because the default Fourier number is small,
+$\alpha=0.0048$, giving $\beta=0.0096$; the solid therefore behaves nearly as
+if it did not diffuse. The Won--Thomas correction raises these to
+$\alpha^{+}=0.2096$ and $\beta=0.3236$, and its curve moves visibly toward the
+equilibrium limit. Clyne--Kurz thus brackets the two classical limits through
+$\beta$, which is its main pedagogical value.
+
+The limited-liquid model is the most strongly segregating case, especially at
+intermediate fractions: at $f_s=0.5$ its liquid reaches $16.75\wtpct$ versus
+$8.18\wtpct$ for equilibrium, because rejected solute has no convective or
+diffusive escape except the thin boundary layer. Its solid profile shows the
+expected sequence of an initial transient above $kC_0$, a plateau near
+$C_S=C_0$, and a final spike as the boundary layer is squeezed against the
+mould wall. The default boundary-layer thickness is
+$\delta/L=D_L/(vL)=0.12$. Near $f_s=1$ the Scheil and limited-liquid curves
+both diverge; the apps stop drawing or flag the singularity rather than
+inventing a finite value.
+
+Temperature acts mainly through diffusion, not through $k$
+(Table~\ref{tab:temperature}). Across $548$--$660\,^\circ$C the partition
+coefficient changes only from $0.1712$ to $0.1735$ (about $1.3\%$), so the
+normalised equilibrium and Scheil curves are almost temperature-independent.
+In contrast $D_S$ rises by a factor of about $7.9$ between $548$ and
+$648\,^\circ$C, which increases back diffusion and lowers the Clyne--Kurz
+liquid composition; $D_L$ changes by about $1.6$ over the same interval, which
+changes $\delta/L$ and therefore the limited-liquid profile. The temperature
+slider is therefore best read as a diffusion sensitivity control, not as a
+phase-diagram prediction.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+$T$ ($^\circ$C) & $C_L$ (wt.\%) & $C_S$ (wt.\%) & $k(T)$ &
+$D_S$ (m$^2$/s) & $D_L$ (m$^2$/s)\\
+\midrule
+548 & 33.00 & 5.650 & 0.1712 & $6.07\times10^{-16}$ & $1.49\times10^{-9}$\\
+600 & 20.00 & 3.436 & 0.1718 & $1.89\times10^{-15}$ & $1.94\times10^{-9}$\\
+640 & 7.67  & 1.324 & 0.1727 & $4.14\times10^{-15}$ & $2.32\times10^{-9}$\\
+648 & 4.80  & 0.830 & 0.1730 & $4.80\times10^{-15}$ & $2.40\times10^{-9}$\\
+660 & 0.12  & 0.021 & 0.1735 & $5.97\times10^{-15}$ & $2.52\times10^{-9}$\\
+\bottomrule
+\end{tabular}
+\caption{Tie-line and transport properties produced by the temperature
+coupling.}
+\label{tab:temperature}
+\end{table}
+
+Numerically, the stand-alone MATLAB functions and the browser implementation
+agree at the reference points: at $640\,^\circ$C both give $k=0.1727$,
+$D_S=4.137\times10^{-15}$ m$^2$/s and $D_L=2.319\times10^{-9}$ m$^2$/s. The
+limited-liquid grid is converged at the stated $N$; doubling it changes the
+plotted profiles by less than the line width. The Scheil average uses its
+analytic $f_s\to0$ limit, and the Clyne--Kurz special cases avoid $0/0$.
+
+\section*{5.\ \ Limitations}
+
+The quadratic fits are extrapolated over $548$--$700\,^\circ$C and should be
+used near the alloy composition, not as a full phase-diagram prediction.
+Constant $k$, constant density, a planar interface and the neglect of the
+eutectic reaction are the main physical restrictions. The Clyne--Kurz and
+Won--Thomas forms are analytical approximations, and the limited-liquid model
+assumes a steady boundary layer even though the concentration sweep captures
+the end transients. The notes' spatial model with a thermal gradient $G_L$
+and the constitutional-supercooling criterion is not implemented: it needs a
+distance axis and a $G_L$ input that the current app does not have. The
+results should therefore be read as a consistent teaching comparison of
+limiting cases, not as a casting simulation.
+
+\end{document}

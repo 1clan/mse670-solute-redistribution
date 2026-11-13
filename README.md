@@ -27,6 +27,11 @@ A full 29-page technical report covers the physics, every implemented equation, 
 - [`report/TECHNICAL_REPORT.pdf`](report/TECHNICAL_REPORT.pdf) — compiled report.
 - [`report/TECHNICAL_REPORT.tex`](report/TECHNICAL_REPORT.tex) — LaTeX source (compile with `pdflatex` twice, or `tectonic TECHNICAL_REPORT.tex`).
 
+A concise **4-page summary** is also included for submission:
+
+- [`report/TECHNICAL_SUMMARY.pdf`](report/TECHNICAL_SUMMARY.pdf) — assumptions, material data and sources, equations, results and discussion, limitations.
+- [`report/TECHNICAL_SUMMARY.tex`](report/TECHNICAL_SUMMARY.tex) — LaTeX source.
+
 It also states explicitly which code is **template** and which is **authored**:
 
 - **Template (adapted):** the MATLAB `uifigure`/`uigridlayout` layout, widget styling and slider skeleton that came from the course template. It contains no solidification physics.
@@ -465,6 +470,8 @@ fs_slider_project/
 ├── report/
 │   ├── TECHNICAL_REPORT.tex   # LaTeX source of the technical report
 │   ├── TECHNICAL_REPORT.pdf   # compiled report (29 pages)
+│   ├── TECHNICAL_SUMMARY.tex  # LaTeX source of the concise summary
+│   ├── TECHNICAL_SUMMARY.pdf  # concise report (4 pages)
 │   └── figures/               # report figures generated from MATLAB
 ├── README.md                  # detailed model documentation and equations
 └── SITE_OVERVIEW.md           # plain-language guide to what the site is about
