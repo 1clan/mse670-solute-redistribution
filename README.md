@@ -32,6 +32,8 @@ A concise **4-page summary** is also included for submission:
 - [`report/TECHNICAL_SUMMARY.pdf`](report/TECHNICAL_SUMMARY.pdf) — assumptions, material data and sources, equations, results and discussion, limitations.
 - [`report/TECHNICAL_SUMMARY.tex`](report/TECHNICAL_SUMMARY.tex) — LaTeX source.
 
+**Compiling on Overleaf:** upload [`report/OVERLEAF_REPORT.zip`](report/OVERLEAF_REPORT.zip) as a new project (*New Project → Upload Project*). It is self-contained: both `.tex` files, the figures, the preview image and the MATLAB listings are inside. Choose `TECHNICAL_REPORT.tex` or `TECHNICAL_SUMMARY.tex` as the main document and compile with pdfLaTeX (twice).
+
 It also states explicitly which code is **template** and which is **authored**:
 
 - **Template (adapted):** the MATLAB `uifigure`/`uigridlayout` layout, widget styling and slider skeleton that came from the course template. It contains no solidification physics.
@@ -472,6 +474,10 @@ fs_slider_project/
 │   ├── TECHNICAL_REPORT.pdf   # compiled report (29 pages)
 │   ├── TECHNICAL_SUMMARY.tex  # LaTeX source of the concise summary
 │   ├── TECHNICAL_SUMMARY.pdf  # concise report (4 pages)
+│   ├── OVERLEAF_REPORT.zip    # self-contained Overleaf upload bundle
+│   ├── OVERLEAF_README.txt    # Overleaf upload instructions
+│   ├── preview.png            # local copy for the report build
+│   ├── models/                # local copies of the five model listings
 │   └── figures/               # report figures generated from MATLAB
 ├── README.md                  # detailed model documentation and equations
 └── SITE_OVERVIEW.md           # plain-language guide to what the site is about
