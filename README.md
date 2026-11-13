@@ -20,6 +20,20 @@ Both versions provide the same controls: `f_s`, `T`, and logarithmic `k`/`C₀` 
 
 > **New here?** Read [`SITE_OVERVIEW.md`](SITE_OVERVIEW.md) for a plain-language explanation of what the site is, who it is for, and what each part of the page shows.
 
+## Technical report
+
+A full 29-page technical report covers the physics, every implemented equation, the browser and MATLAB architectures, the assumptions, the verification results, and a plain-language guide to each `.m` file:
+
+- [`report/TECHNICAL_REPORT.pdf`](report/TECHNICAL_REPORT.pdf) — compiled report.
+- [`report/TECHNICAL_REPORT.tex`](report/TECHNICAL_REPORT.tex) — LaTeX source (compile with `pdflatex` twice, or `tectonic TECHNICAL_REPORT.tex`).
+
+It also states explicitly which code is **template** and which is **authored**:
+
+- **Template (adapted):** the MATLAB `uifigure`/`uigridlayout` layout, widget styling and slider skeleton that came from the course template. It contains no solidification physics.
+- **Authored:** every concentration equation, all four model implementations, the limited-liquid finite-difference solver, the temperature-coupling fits, the Arrhenius diffusivities, all chart data, animation and override logic, the entire browser app, and all documentation.
+
+The same split is repeated as banner comments at the top of and inside `fs_slider.m`, and every standalone model file has an author / equations / how-to-run header.
+
 ![Screenshot of the slider app](preview.png)
 
 Move the **solid fraction `f_s`** slider from 0 to 1 and watch:
@@ -448,6 +462,10 @@ fs_slider_project/
 │   ├── clyne_kurz_model.m     # back-diffusion model
 │   └── won_thomas_model.m     # coarsening-corrected Clyne–Kurz
 ├── preview.png                # screenshot used in this README
+├── report/
+│   ├── TECHNICAL_REPORT.tex   # LaTeX source of the technical report
+│   ├── TECHNICAL_REPORT.pdf   # compiled report (29 pages)
+│   └── figures/               # report figures generated from MATLAB
 ├── README.md                  # detailed model documentation and equations
 └── SITE_OVERVIEW.md           # plain-language guide to what the site is about
 ```

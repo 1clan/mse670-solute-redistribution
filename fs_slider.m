@@ -1,48 +1,83 @@
 function fs_slider
-% FS_SLIDER  Interactive solute-redistribution slider for four solidification models.
+%FS_SLIDER  Interactive solute-redistribution slider for four solidification models.
 %
-%   Move the solid-fraction slider from 0 to 1. The plot shows the solid and
-%   liquid compositions for the selected model:
+%   AUTHOR
+%       Prathamesh Deepak Ladhe
+%       MSE 670 -- Solidification
 %
-%   Equilibrium (lever rule), complete diffusion in both phases:
-%       CS = k*C0 / (1 - (1-k)*fs)
-%       CL =    C0 / (1 - (1-k)*fs)
+%   WHAT THIS FILE IS
+%       A single-file MATLAB app (uifigure + uislider) that plots the solid and
+%       liquid compositions during solidification of Al-4.8 wt.% Cu, for four
+%       classical models, with a temperature slider that can rescale k, D_S
+%       and D_L.
 %
-%   Scheil-Gulliver, no solid diffusion (D_S = 0), perfectly mixed liquid
-%   (D_L -> inf), local equilibrium k = C_S/C_L:
-%       CS = k*C0 * (1 - fs)^(k-1)
-%       CL =    C0 * (1 - fs)^(k-1)
+%   PROVENANCE -- WHICH PARTS ARE TEMPLATE AND WHICH ARE AUTHORED
+%       Part I  (search for "PART I"): the UI layout. The figure, uigridlayout,
+%               widgets, colours, axes creation and slider plumbing are adapted
+%               from the course's MATLAB slider template. They contain NO
+%               solidification physics.
+%       Part II (search for "PART II"): authored for this project. All
+%               concentration equations, the temperature-coupling fits,
+%               Arrhenius diffusivities, mass-conserving limited-liquid solver,
+%               model selection, chart data preparation, readouts, animation
+%               and override rules were written by the author.
+%       index.html (browser app) is a separate, fully authored implementation.
 %
-%   No solid diffusion, limited liquid diffusion (diffusion-controlled planar growth)
-%   and no liquid mixing. A boundary layer builds up ahead of the interface:
-%       CS(x) = C0*[k + (1-k)(1 - exp(-k*x/(delta/L)))]   (initial transient)
-%       CS    = C0                                        (steady growth)
-%       CL(z) = C0*[1 + (1-k)/k * exp(-z/(delta/L))]
-%       delta/L = D_L/(v*L),  L = 1 mm
+%   EQUATIONS IMPLEMENTED
+%       (full derivations: report/TECHNICAL_REPORT.pdf, Section 2)
 %
-%   Clyne-Kurz (finite solid back diffusion, mixed liquid):
-%       CL/C0 = [1 - (1-beta*k)*fs]^((k-1)/(1-beta*k))
-%       beta  = 2*alpha*(1-exp(-1/alpha)) - exp(-1/(2*alpha))
-%       alpha = 4*Ds*tf/lambda2^2
-%   The Won-Thomas option replaces alpha by alpha+ = 2*(alpha + alpha_C).
-%   beta can also be entered directly as a sensitivity parameter.
+%       Equilibrium (lever rule), complete diffusion in both phases:
+%           CS = k*C0 / (1 - (1-k)*fs)
+%           CL =    C0 / (1 - (1-k)*fs)
 %
-%   A second axes shows the composition along the bar. k is unrestricted
-%   (k > 0); it is not limited to 0 < k <= 1.
+%       Scheil-Gulliver, no solid diffusion (D_S = 0), perfectly mixed liquid
+%       (D_L -> inf), local equilibrium k = C_S/C_L:
+%           CS = k*C0 * (1 - fs)^(k-1)
+%           CL =    C0 * (1 - fs)^(k-1)
+%           CS_avg = C0*[1 - (1-fs)^k]/fs
 %
-%   The browser version at index.html also exposes logarithmic k and C_0
-%   sliders and a Play button for every parameter. This app mirrors them:
-%   k and C_0 each have a slider plus an editable numeric field, and the
-%   four triangular buttons animate f_s, T, k or C_0 back and forth.
+%       No solid diffusion, limited liquid diffusion (diffusion-controlled planar
+%       growth) and no liquid mixing. A boundary layer builds up ahead of the
+%       interface:
+%           CS(x) = C0*[k + (1-k)(1 - exp(-k*x/(delta/L)))]   (initial transient)
+%           CS    = C0                                        (steady growth)
+%           CL(z) = C0*[1 + (1-k)/k * exp(-z/(delta/L))]
+%           delta/L = D_L/(v*L),  L = 1 mm
+%       The implemented solid profile is integrated from local equilibrium plus
+%       global solute conservation, so it also captures the final transient.
+%
+%       Clyne-Kurz (finite solid back diffusion, mixed liquid):
+%           CL/C0 = [1 - (1-beta*k)*fs]^((k-1)/(1-beta*k))
+%           beta  = 2*alpha*(1-exp(-1/alpha)) - exp(-1/(2*alpha))
+%           alpha = 4*Ds*tf/lambda2^2
+%       The Won-Thomas option replaces alpha by alpha+ = 2*(alpha + alpha_C).
+%       beta can also be entered directly as a sensitivity parameter.
+%
+%       Temperature coupling (authored extension):
+%           k(T) = C_S(T)/C_L(T)   from quadratic Al-Cu liquidus/solidus fits
+%           D(T) = D_ref*exp[-(Q/R)*(1/(T+273.15) - 1/(T_ref+273.15))]
+%           T_ref = 648 C, Q_S = 130 kJ/mol, Q_L = 30 kJ/mol
 %
 %   HOW TO RUN
-%       Put this file in the Current Folder and run:  fs_slider
+%       1. cd to the folder that contains this file (fs_slider_project).
+%       2. In the MATLAB Command Window type:  fs_slider
+%       3. Optional: addpath('models') to use the five standalone functions.
+%       Requires MATLAB R2020a or newer (uifigure / uislider / uigridlayout).
+%       Base MATLAB only: no toolboxes, no external files, no network.
 %
-%   Requires MATLAB R2020a or newer (uifigure / uislider).
+%   CONTROLS
+%       Model dropdown selects the four models. The f_s slider is the main
+%       coordinate. The temperature slider moves the tie-line and, while the
+%       "derive k, D_s and D_L from T" box is checked, rescales k, D_S and D_L.
+%       Editing or animating k clears that coupling (manual override). The four
+%       triangular buttons animate f_s, T, k or C_0. A second axes shows the
+%       composition along the bar. k is unrestricted (k > 0).
 %
-%   Default material: Al-4.8 wt.% Cu. The temperature slider moves the
-%   liquidus tie-line and rescales k, D_s and D_L from quadratic
-%   phase-diagram fits and Arrhenius scaling anchored at 648 C.
+%   Default material: Al-4.8 wt.% Cu.
+%
+%   See also EQUILIBRIUM_MODEL, SCHEIL_MODEL, LIMITED_LIQUID_MODEL,
+%   CLYNE_KURZ_MODEL, WON_THOMAS_MODEL.
+
 
 % Al-4.8 wt.% Cu reference properties
 Tm       = 660.3;    % melting point of pure Al, C
@@ -74,7 +109,15 @@ solidColor  = [0.06 0.46 0.43];
 liquidColor = [0.76 0.25 0.05];
 guideColor  = [0.15 0.30 0.55];
 
-%% UI
+% =========================================================================
+%% PART I -- UI LAYOUT (course template, adapted and restyled)
+% =========================================================================
+% Everything from this banner down to the callback wiring at the end of the
+% UI block is graphical scaffolding only. It creates the figure, grid, labels,
+% sliders, fields, buttons and axes. It contains NO concentration physics.
+% The template supplied the slider-app skeleton; this project added the extra
+% panels, controls and styling. The chemistry begins in Part II.
+% =========================================================================
 fig = uifigure('Name','Solute redistribution: four solidification models', ...
     'Color',[0.96 0.98 1.00], 'Position',[60 30 1180 1000]);
 
@@ -433,6 +476,19 @@ btnPlayK.ButtonPushedFcn  = @(src,event) toggleAnim('k');
 btnPlayC0.ButtonPushedFcn = @(src,event) toggleAnim('c0');
 fig.CloseRequestFcn       = @(src,event) onClose();
 
+% =========================================================================
+%% PART II -- AUTHORED BEHAVIOUR (callbacks, coupling, models, plotting)
+% =========================================================================
+% All code below this banner was written for this project. The template
+% supplied the widgets; the equations, decision logic and plotted data are
+% the author's. Subsections:
+%   (a) control callbacks and manual-override rules
+%   (b) parameter animation
+%   (c) temperature -> k, D_S, D_L coupling (phase-diagram fits + Arrhenius)
+%   (d) the four concentration models (Scheil, Clyne-Kurz, limited liquid)
+%   (e) axis limits, formatting and the updateDisplay() render cycle
+% =========================================================================
+
     function manualFs(v)
         stopAnim();
         updateDisplay(v);
@@ -514,7 +570,8 @@ fig.CloseRequestFcn       = @(src,event) onClose();
         updateDisplay();
     end
 
-    % ── Parameter animation ────────────────────────────────
+    %% (b) AUTHORED: Parameter animation ------------------------------------
+    % Triangular play buttons sweep f_s, T, k or C_0 with one shared timer.
     % The four triangular buttons sweep one parameter between the ends of
     % its range and back. A timer drives the motion; starting any button
     % stops the previous animation, and any manual edit also stops it.
@@ -545,6 +602,8 @@ fig.CloseRequestFcn       = @(src,event) onClose();
         p = max(0,min(1,p));
     end
 
+    % Template-style layout plumbing (no physics). The pattern comes from the
+    % course template; it is extended here to cover the extra panels.
     function syncParamSliders()
         kSld.Value = logPos(kField.Value);
         c0Sld.Value = logPos(c0Field.Value);
@@ -654,7 +713,10 @@ fig.CloseRequestFcn       = @(src,event) onClose();
         end
     end
 
-    % ── Temperature-concentration coupling ─────────────────
+    %% (c) AUTHORED: Temperature-concentration coupling --------------------
+    % The course notes assume constant k, D_L and m. This is an explicit
+    % extension: T sets k through the Al-Cu tie-line and rescales both
+    % diffusivities by Arrhenius factors anchored at T_ref = 648 C.
     % Quadratic liquidus and solidus fits through the Al-Cu points
     % (0, 660.3), (4.8, 648), (33, 548) and
     % (0, 660.3), (0.8304, 648), (5.65, 548).
@@ -738,6 +800,7 @@ fig.CloseRequestFcn       = @(src,event) onClose();
         d = dl/(v*L0);
     end
 
+    %% (d) AUTHORED: Concentration models ----------------------------------
     % ── Clyne-Kurz ─────────────────────────────────────────
     function a = alphaBase()
         lam = max(lamField.Value*1e-6, 1e-12);
@@ -858,6 +921,7 @@ fig.CloseRequestFcn       = @(src,event) onClose();
         v = (1 - Ii)/(1 - fsVal);
     end
 
+    %% (e) AUTHORED: Axis limits, formatting and render cycle --------------
     % ── Axis limits ────────────────────────────────────────
     function top = yTopMain()
         kVal = kField.Value;
@@ -913,6 +977,11 @@ fig.CloseRequestFcn       = @(src,event) onClose();
     end
 
     function updateDisplay(fsRequested)
+        % Single render entry point. Every callback ends here, so the readout
+        % and both charts always show the same state.
+        %   1. refresh derived properties (temperature coupling, slider sync)
+        %   2. evaluate the selected model at the requested f_s
+        %   3. build the two plots and the text readout
         if nargin < 1 || isempty(fsRequested)
             fsRequested = sld.Value;
         end

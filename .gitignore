@@ -9,3 +9,11 @@ Thumbs.db
 
 # Local previews / scratch
 node_modules/
+
+# LaTeX intermediate files (the compiled report PDF is kept)
+report/*.aux
+report/*.log
+report/*.out
+report/*.toc
+report/*.lof
+report/*.lot

@@ -41,6 +41,17 @@ function out = won_thomas_model(k, c0, Ds, tf, lambda2, fs, alphaC)
 %   Example (Al-4.8 wt.% Cu at 648 C)
 %       out = won_thomas_model(0.173, 4.8, 4.8e-15, 100, 20e-6, 0.9)
 %       % alphaWT = 0.2096, beta = 0.3236
+%
+%   HOW TO RUN
+%       addpath('models')                 % from fs_slider_project
+%       out = won_thomas_model(0.173, 4.8, 4.8e-15, 100, 20e-6, 0.9);
+%
+%   AUTHOR
+%       Prathamesh Deepak Ladhe, MSE 670 -- Solidification
+%
+%   SEE ALSO
+%       clyne_kurz_model, scheil_model, equilibrium_model.
+%       Derivation: report/TECHNICAL_REPORT.pdf, Section 2.6.
 
 if nargin < 7 || isempty(alphaC)
     alphaC = 0.1;

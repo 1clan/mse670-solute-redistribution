@@ -22,6 +22,19 @@ function [Cs, Cl, CsAvg, ClAvg] = equilibrium_model(k, c0, fs)
 %
 %   Example (Al-4.8 wt.% Cu)
 %       [Cs, Cl] = equilibrium_model(0.173, 4.8, 0.5)   % Cs = 1.416, Cl = 8.184
+%
+%   HOW TO RUN
+%       addpath('models')                 % from fs_slider_project
+%       [Cs, Cl] = equilibrium_model(0.173, 4.8, 0.5);
+%       fs = linspace(0,1,200);
+%       [Cs, Cl] = equilibrium_model(0.173, 4.8, fs);   % vectorised
+%
+%   AUTHOR
+%       Prathamesh Deepak Ladhe, MSE 670 -- Solidification
+%
+%   SEE ALSO
+%       scheil_model, clyne_kurz_model, limited_liquid_model.
+%       Derivation: report/TECHNICAL_REPORT.pdf, Section 2.2.
 
 den = 1 - (1 - k).*fs;
 Cs = (k .* c0) ./ den;

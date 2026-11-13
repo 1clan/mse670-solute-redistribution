@@ -29,6 +29,19 @@ function [Cs, Cl, CsAvg, ClAvg] = scheil_model(k, c0, fs)
 %
 %   Example (Al-4.8 wt.% Cu)
 %       [Cs, Cl, CsAvg] = scheil_model(0.173, 4.8, 0.5)
+%
+%   HOW TO RUN
+%       addpath('models')                 % from fs_slider_project
+%       [Cs, Cl] = scheil_model(0.173, 4.8, 0.5);
+%       fs = linspace(0,0.99,200);
+%       [Cs, Cl, CsAvg] = scheil_model(0.173, 4.8, fs);
+%
+%   AUTHOR
+%       Prathamesh Deepak Ladhe, MSE 670 -- Solidification
+%
+%   SEE ALSO
+%       equilibrium_model, clyne_kurz_model, limited_liquid_model.
+%       Derivation: report/TECHNICAL_REPORT.pdf, Section 2.3.
 
 Cl = c0 .* (1 - fs).^(k - 1);
 Cs = k .* Cl;

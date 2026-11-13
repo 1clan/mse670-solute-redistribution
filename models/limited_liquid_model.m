@@ -54,6 +54,19 @@ function out = limited_liquid_model(k, c0, v, DL, fs, N, L)
 %   Example (Al-4.8 wt.% Cu at 648 C)
 %       out = limited_liquid_model(0.173, 4.8, 20e-6, 2.4e-9, 0.5);
 %       % default L = 1 mm; delta/L = 0.12
+%
+%   HOW TO RUN
+%       addpath('models')                 % from fs_slider_project
+%       out = limited_liquid_model(0.173, 4.8, 20e-6, 2.4e-9, 0.5);
+%       plot(out.x, out.csProfile)        % solid profile along the bar
+%       plot(out.z, out.ClProfile)        % liquid boundary layer
+%
+%   AUTHOR
+%       Prathamesh Deepak Ladhe, MSE 670 -- Solidification
+%
+%   SEE ALSO
+%       equilibrium_model, scheil_model, clyne_kurz_model.
+%       Derivation: report/TECHNICAL_REPORT.pdf, Section 2.4.
 
 if nargin < 5 || isempty(fs)
     fs = 0.5;
