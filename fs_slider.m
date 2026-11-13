@@ -40,16 +40,20 @@ function fs_slider
 %
 %   Requires MATLAB R2020a or newer (uifigure / uislider).
 %
-%   Default material: Al-4.8 wt.% Cu. The temperature slider selects the
-%   local liquidus temperature. The equilibrium tie-line follows the
-%   notes' linear liquidus T_L = T_m - m*C_L; k, D_s and D_L stay constant.
+%   Default material: Al-4.8 wt.% Cu. The temperature slider moves the
+%   liquidus tie-line and rescales k, D_s and D_L from quadratic
+%   phase-diagram fits and Arrhenius scaling anchored at 648 C.
 
 % Al-4.8 wt.% Cu reference properties
 Tm       = 660.3;    % melting point of pure Al, C
 Tref     = 648;      % liquidus temperature of the alloy, C
 Teut     = 548;      % solidus / eutectic temperature, C
-mLiq     = (Tm - Tref)/4.8;  % liquidus slope, C per wt.% Cu
-kRef     = 0.173;    % constant partition coefficient
+kRef     = 0.173;    % partition coefficient at Tref
+dsRef    = 4.8e-15;  % solid diffusivity at Tref, m^2/s
+dlRef    = 2.4e-9;   % liquid diffusivity at Tref, m^2/s
+Qs       = 130e3;    % solid activation energy, J/mol
+Ql       = 30e3;     % liquid activation energy, J/mol
+Rgas     = 8.314462618;
 
 C0   = 4.8;    % nominal composition, wt.%
 k    = kRef;   % partition coefficient (k > 0)
@@ -131,11 +135,9 @@ tieLbl.FontSize = 11;
 tieLbl.FontColor = [0.22 0.30 0.40];
 tieLbl.WordWrap = 'on';
 
-hintConst = uilabel(ctrl);
-hintConst.Layout.Row = 5; hintConst.Layout.Column = [1 3];
-hintConst.Text = 'Linear liquidus T_L = T_m - m C_L; k, D_s, D_L constant';
-hintConst.FontSize = 10;
-hintConst.FontColor = [0.35 0.42 0.50];
+tempLinkCheck = uicheckbox(ctrl, ...
+    'Text','Derive k, D_s and D_L from T','Value',true);
+tempLinkCheck.Layout.Row = 5; tempLinkCheck.Layout.Column = [1 3];
 
 lblFs = uilabel(ctrl);
 lblFs.Layout.Row = 6; lblFs.Layout.Column = 1;
@@ -165,11 +167,11 @@ lblK.Text = 'Partition coefficient, k (log slider)';
 kField = uieditfield(ctrl,'numeric','Limits',[0.01 100], ...
     'Value',k,'ValueDisplayFormat','%.4f');
 kField.Layout.Row = 8; kField.Layout.Column = 2;
-kField.Tooltip = 'Constant partition coefficient; edit or animate independently of T';
+kField.Tooltip = 'Derived from the phase diagram; type a value to override k';
 
 btnPlayK = uibutton(ctrl,'push','Text',char(9654),'FontSize',11);
 btnPlayK.Layout.Row = 8; btnPlayK.Layout.Column = 3;
-btnPlayK.Tooltip = 'Animate k over 0.01-100';
+btnPlayK.Tooltip = 'Animate k over 0.01-100 and turn off temperature coupling';
 
 logMin = 0.01;
 logMax = 100;
@@ -407,6 +409,7 @@ sld.ValueChangingFcn = @(src,event) manualFs(event.Value);
 sld.ValueChangedFcn  = @(src,event) manualFs(src.Value);
 tempSld.ValueChangingFcn = @(src,event) manualTemp(event.Value);
 tempSld.ValueChangedFcn  = @(src,event) manualTemp(event.Value);
+tempLinkCheck.ValueChangedFcn = @(src,event) onTempLinkChanged();
 modelDrop.ValueChangedFcn = @(src,event) onModelChanged();
 kField.ValueChangedFcn    = @(src,event) onKFieldChanged();
 c0Field.ValueChangedFcn   = @(src,event) onC0FieldChanged();
@@ -444,8 +447,17 @@ fig.CloseRequestFcn       = @(src,event) onClose();
         updateTemperature(Tnew);
     end
 
+    function onTempLinkChanged()
+        stopAnim();
+        updateDisplay();
+    end
+
     function onKFieldChanged()
         stopAnim();
+        % Typing a value is a manual override: stop deriving k from T.
+        if tempLinkCheck.Value
+            tempLinkCheck.Value = false;
+        end
         updateDisplay();
     end
 
@@ -456,6 +468,9 @@ fig.CloseRequestFcn       = @(src,event) onClose();
 
     function onKSldChanged(p)
         stopAnim();
+        if tempLinkCheck.Value
+            tempLinkCheck.Value = false;
+        end
         kField.Value = min(logMax,max(logMin,logVal(p)));
         updateDisplay();
     end
@@ -567,6 +582,10 @@ fig.CloseRequestFcn       = @(src,event) onClose();
         if animPos >= 1 - 1e-9
             animDir = -1;
         end
+        % Animating k is a manual override, just like dragging its slider.
+        if strcmp(target,'k') && tempLinkCheck.Value
+            tempLinkCheck.Value = false;
+        end
         if isempty(animTimer) || ~isvalid(animTimer)
             animTimer = timer('ExecutionMode','fixedSpacing','Period',0.05, ...
                 'BusyMode','drop','TimerFcn',@(src,event) animStep());
@@ -636,19 +655,62 @@ fig.CloseRequestFcn       = @(src,event) onClose();
     end
 
     % ── Temperature-concentration coupling ─────────────────
-    % The notes use the dilute linear liquidus T_L = T_m - m*C_L with
-    % constant m. Inverting it fixes the equilibrium tie-line at the
-    % selected temperature. k, D_s and D_L are constant inputs; they are
-    % not rescaled with temperature.
+    % Quadratic liquidus and solidus fits through the Al-Cu points
+    % (0, 660.3), (4.8, 648), (33, 548) and
+    % (0, 660.3), (0.8304, 648), (5.65, 548).
+    function r = quadRoot(a,b,cFit,T)
+        if T >= cFit
+            r = 0;
+            return;
+        end
+        disc = b^2 - 4*a*(cFit - T);
+        if disc < 0
+            r = 0;
+        else
+            r = (-b - sqrt(disc))/(2*a);
+        end
+    end
+
     function c = liquidusC(T)
-        c = max(0,(Tm - T)/mLiq);
+        c = max(0, quadRoot(-0.0298060391,-2.41943101,660.3,T));
     end
 
     function c = solidusC(T)
-        c = kField.Value*liquidusC(T);
+        c = max(0, quadRoot(-1.05070285,-13.93963508,660.3,T));
     end
 
-    function updateTemperatureDisplay(Tnow)
+    function kk = kAtT(T)
+        cl = liquidusC(T);
+        cs = solidusC(T);
+        if cl < 1e-8
+            kk = kRef;
+        else
+            kk = cs/cl;
+        end
+    end
+
+    function d = dsAtT(T)
+        d = dsRef*exp(-(Qs/Rgas)*(1/(T+273.15) - 1/(Tref+273.15)));
+    end
+
+    function d = dlAtT(T)
+        d = dlRef*exp(-(Ql/Rgas)*(1/(T+273.15) - 1/(Tref+273.15)));
+    end
+
+    function syncTemperature(Tnow)
+        if tempLinkCheck.Value
+            kField.Value  = kAtT(Tnow);
+            dlField.Value = dlAtT(Tnow)*1e9;
+            dsField.Value = dsAtT(Tnow)*1e12;
+            dlField.Enable = 'off';
+            dsField.Enable = 'off';
+        else
+            dlField.Enable = 'on';
+            dsField.Enable = 'on';
+        end
+        % k stays editable: typing or dragging its slider is a manual override.
+        kField.Enable = 'on';
+        kField.Tooltip = 'Type a value or move the k slider to override temperature coupling';
         valT.Text = sprintf('T = %d C',round(Tnow));
         tieLbl.Text = tieLineText(Tnow);
     end
@@ -664,9 +726,8 @@ fig.CloseRequestFcn       = @(src,event) onClose();
                 round(Tnow),Tm);
         else
             s = sprintf(['T = %d C  ->  C_L = %.2f, C_S = %.3f wt.%%  ' ...
-                '(k = %.4f, m = %.4f C/wt.%%)'], ...
-                round(Tnow),liquidusC(Tnow),solidusC(Tnow), ...
-                kField.Value,mLiq);
+                '(k = %.4f)'], ...
+                round(Tnow),liquidusC(Tnow),solidusC(Tnow),kField.Value);
         end
     end
 
@@ -857,7 +918,7 @@ fig.CloseRequestFcn       = @(src,event) onClose();
         end
 
         Tnow = tempDisplay;
-        updateTemperatureDisplay(Tnow);
+        syncTemperature(Tnow);
         syncParamSliders();
 
         kNow  = kField.Value;

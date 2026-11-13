@@ -661,6 +661,23 @@
 
   .avg-line small { color: var(--muted); font-size: 10.5px; }
 
+  /* Compact live readout of the temperature-derived transport properties. */
+  .prop-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 8px;
+    padding: 0 2px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .prop-line strong {
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
   .graph-card {
     padding: 18px 18px 14px;
     overflow: hidden;
@@ -1080,7 +1097,7 @@
           <div class="slider-head">
             <div class="slider-name">
               Interface temperature, T
-              <small>Linear liquidus tie-line · m = 2.5625 °C/wt.%</small>
+              <small>Phase-diagram fits · k(T), D<sub>S</sub>(T), D<sub>L</sub>(T)</small>
             </div>
             <div class="slider-actions">
               <output class="value-badge" id="tempBadge" for="tempSlider">648</output>
@@ -1111,7 +1128,7 @@
         <div class="control-stack">
           <div class="slider-field">
             <div class="field-head">
-              <label for="kInput">Partition coefficient, k <span>(constant; edit to override)</span></label>
+              <label for="kInput">Partition coefficient, k <span id="kHint">(from T; edit to override)</span></label>
               <div class="field-actions">
                 <input id="kInput" type="number" min="0.01" max="100" step="0.001" value="0.173" />
                 <button
@@ -1132,7 +1149,7 @@
               step="1"
               value="310"
               aria-label="Partition coefficient slider, logarithmic from 0.01 to 100"
-              title="Partition coefficient, independent of temperature"
+              title="Move to override k manually and turn off temperature coupling"
             />
             <div class="range-scale"><span>0.01</span><span>100</span></div>
           </div>
@@ -1163,6 +1180,11 @@
             <div class="range-scale"><span>0.01</span><span>100</span></div>
           </div>
         </div>
+
+        <label class="check-row" for="tempLinkToggle" style="margin-top: 10px;">
+          <input id="tempLinkToggle" type="checkbox" checked />
+          Derive k, D<sub>s</sub> and D<sub>L</sub> from T
+        </label>
 
         <div class="param-panel" id="limitedPanel" hidden>
           <div class="mini-grid">
@@ -1238,8 +1260,13 @@
         </div>
 
         <div class="avg-line" id="tieLine">
-          <span>Liquidus tie-line at <strong id="tieTemp">648</strong> °C · k = <strong id="tieK">0.173</strong></span>
+          <span>Liquidus tie-line at <strong id="tieTemp">648</strong> °C · <span id="tieKLabel">k(T)</span> = <strong id="tieK">0.173</strong></span>
           <span>C<sub>L,eq</sub> / C<sub>S,eq</sub> = <strong id="tieCL">4.80</strong> / <strong id="tieCS">0.830</strong> <small>wt.%</small></span>
+        </div>
+
+        <div class="prop-line" id="propLine">
+          <span>D<sub>S</sub> = <strong id="propDS">4.80×10⁻¹⁵</strong> m²/s</span>
+          <span>D<sub>L</sub> = <strong id="propDL">2.40×10⁻⁹</strong> m²/s</span>
         </div>
 
         <div class="stats">
@@ -1437,22 +1464,27 @@
   "use strict";
 
   // ── Alloy and state ────────────────────────────────────────
-  // Al–4.8 wt.% Cu reference properties. The notes use the dilute linear
-  // liquidus T_L = T_m − m C_L through (0, 660.3) and (4.8, 648).
-  // k, D_S and D_L are constant inputs; temperature does not rescale them.
+  // Al–4.8 wt.% Cu reference properties. Quadratic liquidus and solidus
+  // fits pass through (0, 660.3), (4.8, 648), (33, 548) and
+  // (0, 660.3), (0.8304, 648), (5.65, 548). Their ratio gives k(T);
+  // D_S and D_L follow Arrhenius scaling anchored at 648 °C.
   const ALLOY = {
     c0: 4.8,
     kRef: 0.173,
+    Tref: 648,
     Tm: 660.3,
     Teut: 548,
-    m: (660.3 - 648) / 4.8, // liquidus slope: 2.5625 °C per wt.% Cu
     dsRef: 4.8e-15,
     dlRef: 2.4e-9,
+    Qs: 130e3,
+    Ql: 30e3,
+    R: 8.314462618,
   };
 
   const state = {
     fs: 0.5,
     T: 648,
+    tempLinked: true,
     k: ALLOY.kRef,
     c0: ALLOY.c0,
     model: "equilibrium",
@@ -1473,12 +1505,17 @@
     fsBadge: document.getElementById("fsBadge"),
     tempSlider: document.getElementById("tempSlider"),
     tempBadge: document.getElementById("tempBadge"),
+    tempLinkToggle: document.getElementById("tempLinkToggle"),
     tieTemp: document.getElementById("tieTemp"),
+    tieKLabel: document.getElementById("tieKLabel"),
     tieK: document.getElementById("tieK"),
     tieCL: document.getElementById("tieCL"),
     tieCS: document.getElementById("tieCS"),
+    propDS: document.getElementById("propDS"),
+    propDL: document.getElementById("propDL"),
     kInput: document.getElementById("kInput"),
     kSlider: document.getElementById("kSlider"),
+    kHint: document.getElementById("kHint"),
     c0Input: document.getElementById("c0Input"),
     c0Slider: document.getElementById("c0Slider"),
     csValue: document.getElementById("csValue"),
@@ -1620,6 +1657,12 @@
     play.pos = playPosition(target);
     play.dir = play.pos >= 1 - 1e-9 ? -1 : 1;
     play.lastTs = 0;
+    // Animating k is a manual override, just like dragging its slider.
+    if (target === "k" && state.tempLinked) {
+      state.tempLinked = false;
+      els.tempLinkToggle.checked = false;
+      update();
+    }
     updatePlayButtons();
     play.raf = requestAnimationFrame(stepPlay);
   }
@@ -1652,30 +1695,95 @@
   }
 
   // ── Temperature–concentration coupling ─────────────────────
-  // The notes use the dilute linear liquidus
-  //   T_L = T_m − m C_L
-  // with constant m. Inverting it fixes the equilibrium tie-line at the
-  // selected temperature. The partition coefficient stays constant, so
-  //   C_L,eq(T) = (T_m − T)/m,   C_S,eq(T) = k C_L,eq(T).
-  // Temperature does not rescale k, D_S or D_L.
+  // Quadratic liquidus and solidus fits through the Al–Cu points
+  // (0, 660.3), (4.8, 648), (33, 548) for the liquidus and
+  // (0, 660.3), (0.8304, 648), (5.65, 548) for the solidus.
+  // Their ratio gives k(T); the transport coefficients use Arrhenius
+  // scaling anchored to the Al–4.8 wt.% Cu reference at 648 °C.
+  const LIQ_FIT = { a: -0.0298060391, b: -2.41943101, c: 660.3 };
+  const SOL_FIT = { a: -1.05070285, b: -13.93963508, c: 660.3 };
+
+  function fitRoot(fit, T) {
+    if (T >= fit.c) return 0;
+    const disc = fit.b * fit.b - 4 * fit.a * (fit.c - T);
+    if (!(disc >= 0)) return 0;
+    return (-fit.b - Math.sqrt(disc)) / (2 * fit.a);
+  }
+
+  // Equilibrium liquidus composition (wt.% Cu) at temperature T (°C).
   function liquidusC(T) {
-    return Math.max(0, (ALLOY.Tm - T) / ALLOY.m);
+    return Math.max(0, fitRoot(LIQ_FIT, T));
   }
 
+  // Equilibrium solidus composition (wt.% Cu) at temperature T (°C).
   function solidusC(T) {
-    return state.k * liquidusC(T);
+    return Math.max(0, fitRoot(SOL_FIT, T));
   }
 
-  // Update the tie-line readout. The model curves themselves depend only
-  // on k and C0; the notes' liquidus relation sets the equilibrium tie-line.
+  // k(T) from the phase-diagram ratio C_S/C_L. At T >= T_m there is no
+  // primary solid, so keep the reference value for the limiting curves.
+  function kAtT(T) {
+    const cl = liquidusC(T);
+    const cs = solidusC(T);
+    if (cl < 1e-8) return ALLOY.kRef;
+    return cs / cl;
+  }
+
+  const kelvin = (T) => T + 273.15;
+
+  // Scientific notation with real superscripts, e.g. 4.80×10⁻¹⁵.
+  const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+  function fmtSci(value, digits = 2) {
+    const [mantissa, exponent] = value.toExponential(digits).split("e");
+    const sup = exponent.replace("-", "⁻").replace("+", "").replace(/\d/g, (d) => SUP[Number(d)]);
+    return `${mantissa}×10${sup}`;
+  }
+
+  // Arrhenius scaling anchored to the Al–4.8 wt.% Cu reference at 648 °C.
+  function dsAtT(T) {
+    return ALLOY.dsRef * Math.exp(
+      -(ALLOY.Qs / ALLOY.R) * (1 / kelvin(T) - 1 / kelvin(ALLOY.Tref))
+    );
+  }
+
+  function dlAtT(T) {
+    return ALLOY.dlRef * Math.exp(
+      -(ALLOY.Ql / ALLOY.R) * (1 / kelvin(T) - 1 / kelvin(ALLOY.Tref))
+    );
+  }
+
+  // Push the temperature-derived properties into the state and the fields.
   function syncTemperature() {
+    if (state.tempLinked) {
+      state.k = kAtT(state.T);
+      state.ds = dsAtT(state.T);
+      state.dl = dlAtT(state.T);
+      els.kInput.value = state.k.toFixed(4);
+      els.dsInput.value = (state.ds / 1e-12).toPrecision(4);
+      els.dlInput.value = (state.dl / 1e-9).toPrecision(4);
+    }
+    els.dsInput.disabled = state.tempLinked;
+    els.dlInput.disabled = state.tempLinked;
+
     const clEq = liquidusC(state.T);
     const csEq = solidusC(state.T);
     const fullyLiquid = state.T >= ALLOY.Tm;
     els.tieTemp.textContent = String(Math.round(state.T));
-    els.tieK.textContent = state.k.toFixed(4);
+    // Show the k actually used by the curves: derived while coupling is on,
+    // manual otherwise.
+    els.tieKLabel.textContent = state.tempLinked ? "k(T)" : "k";
+    els.tieK.textContent = fullyLiquid ? "—" : state.k.toFixed(4);
     els.tieCL.textContent = fullyLiquid ? "0.00" : clEq.toFixed(2);
     els.tieCS.textContent = fullyLiquid ? "0.00" : csEq.toFixed(3);
+    els.propDS.textContent = fmtSci(state.ds);
+    els.propDL.textContent = fmtSci(state.dl);
+    els.kHint.textContent = state.tempLinked ? "(from T; edit to override)" : "(manual)";
+    els.kInput.title = state.tempLinked
+      ? "Derived from the phase diagram. Typing a value switches to manual k."
+      : "Manual value (temperature coupling is off)";
+    els.kSlider.title = state.tempLinked
+      ? "Move to override k manually and turn off temperature coupling"
+      : "Manual partition coefficient";
   }
 
   // ── Model ──────────────────────────────────────────────────
@@ -2829,12 +2937,18 @@
     button.addEventListener("click", () => togglePlay(button.dataset.play));
   });
 
-  // k is an independent constant input, not derived from temperature.
+  // Manually moving the k slider turns temperature coupling off so the
+  // slider value is not immediately overwritten by the phase diagram.
   els.kSlider.addEventListener("input", (event) => {
     stopPlay();
     const value = Number(sliderToLogValue(Number(event.target.value)).toFixed(4));
     els.kInput.value = String(value);
-    setState({ k: value });
+    const patch = { k: value };
+    if (state.tempLinked) {
+      patch.tempLinked = false;
+      els.tempLinkToggle.checked = false;
+    }
+    setState(patch);
   });
 
   els.c0Slider.addEventListener("input", (event) => {
@@ -2847,6 +2961,19 @@
   els.tempSlider.addEventListener("input", (event) => {
     stopPlay();
     setState({ T: Math.round(Number(event.target.value)) });
+  });
+
+  els.tempLinkToggle.addEventListener("change", (event) => {
+    stopPlay();
+    const linked = event.target.checked;
+    const patch = { tempLinked: linked };
+    // Re-anchor to the current temperature when coupling is re-enabled.
+    if (linked) {
+      patch.k = kAtT(state.T);
+      patch.ds = dsAtT(state.T);
+      patch.dl = dlAtT(state.T);
+    }
+    setState(patch);
   });
 
   modelButtons.forEach((button) => {
@@ -2881,15 +3008,25 @@
     stopPlay();
     const value = Number(event.target.value);
     if (Number.isFinite(value) && value > 0 && value <= 100) {
-      setState({ k: value });
+      const patch = { k: value };
+      // Typing a k value is a manual override: stop deriving k from T.
+      if (state.tempLinked) {
+        patch.tempLinked = false;
+        els.tempLinkToggle.checked = false;
+      }
+      setState(patch);
     }
   });
 
   els.kInput.addEventListener("blur", (event) => {
     const value = Number(event.target.value);
     if (!Number.isFinite(value) || value <= 0) {
-      event.target.value = String(ALLOY.kRef);
-      setState({ k: ALLOY.kRef });
+      if (state.tempLinked) {
+        setState({ k: kAtT(state.T) });
+      } else {
+        event.target.value = String(ALLOY.kRef);
+        setState({ k: ALLOY.kRef });
+      }
     } else if (value > 100) {
       event.target.value = "100";
       setState({ k: 100 });

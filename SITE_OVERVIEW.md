@@ -6,7 +6,7 @@
 
 ## In one paragraph
 
-This is a single-page, browser-based teaching tool for **MSE 670 (Solidification)**. It visualises how a solute (copper) redistributes between the growing solid and the remaining liquid as an **Al–4.8 wt.% Cu** alloy freezes. You move the solid-fraction `f_s` and interface-temperature `T` sliders, plus logarithmic `k` and `C_0` sliders, and the page updates the solid and liquid compositions, an along-the-bar concentration profile, the liquidus tie-line, and a live mass-balance check. A **Play** button on every parameter sweeps `f_s`, `T`, `k`, or `C_0` back and forth for a hands-off animation. A model switch lets you compare four classic solidification models side by side: Equilibrium (lever rule), Scheil–Gulliver, no solid diffusion with limited liquid diffusion, and Clyne–Kurz with back diffusion.
+This is a single-page, browser-based teaching tool for **MSE 670 (Solidification)**. It visualises how a solute (copper) redistributes between the growing solid and the remaining liquid as an **Al–4.8 wt.% Cu** alloy freezes. You move the solid-fraction `f_s` and interface-temperature `T` sliders, plus logarithmic `k` and `C_0` sliders, and the page updates the solid and liquid compositions, an along-the-bar concentration profile, the liquidus tie-line with `k`, `D_S`, `D_L` derived from `T`, and a live mass-balance check. A **Play** button on every parameter sweeps `f_s`, `T`, `k`, or `C_0` back and forth for a hands-off animation. A model switch lets you compare four classic solidification models side by side: Equilibrium (lever rule), Scheil–Gulliver, no solid diffusion with limited liquid diffusion, and Clyne–Kurz with back diffusion.
 
 It is an **interactive graph / explanatory visualisation**, not a data-collection site, calculator service, or commercial product. There is no backend, no login, no tracking, and no external dependencies — the whole thing is one self-contained HTML file that can be opened offline.
 
@@ -48,8 +48,8 @@ Limiting behaviour built into the models:
 
 ## What the page shows
 
-- **Controls panel** — model switch, `f_s` slider (0 = all liquid, 1 = all solid), temperature slider (548–700 °C in whole-degree steps, moving the liquidus tie-line), logarithmic `k` and `C_0` sliders paired with editable number boxes, model-specific inputs (growth velocity `v`, `D_L`, `D_s`, local solidification time `t_f`, secondary dendrite arm spacing `λ₂`, `α_C`, direct `β`), and a **▶ Play** button on every parameter (`f_s`, `T`, `k`, `C_0`) that animates it back and forth.
-- **Current state readout** — `C_S` and `C_L` in wt.%, solid/liquid averages where relevant, the liquidus tie-line `C_L,eq(T)` / `C_S,eq(T)`, and the mass-balance check `f_s C_S,avg + (1 − f_s) C_L,avg = C_0`.
+- **Controls panel** — model switch, `f_s` slider (0 = all liquid, 1 = all solid), temperature slider (548–700 °C in whole-degree steps, moving the liquidus tie-line and deriving `k`, `D_S`, `D_L`), logarithmic `k` and `C_0` sliders paired with editable number boxes, model-specific inputs (growth velocity `v`, `D_L`, `D_s`, local solidification time `t_f`, secondary dendrite arm spacing `λ₂`, `α_C`, direct `β`), and a **▶ Play** button on every parameter (`f_s`, `T`, `k`, `C_0`) that animates it back and forth.
+- **Current state readout** — `C_S` and `C_L` in wt.%, solid/liquid averages where relevant, the liquidus tie-line `C_L(T)` / `C_S(T)` with the temperature-derived `k`, `D_S`, `D_L`, and the mass-balance check `f_s C_S,avg + (1 − f_s) C_L,avg = C_0`.
 - **Composition vs. solid fraction** — the main chart: solid and liquid composition (normalised by `C_0`) through the whole freezing range.
 - **Composition along the bar** — a schematic bar split into solidified (teal) and liquid (amber) segments, with the concentration profile beneath it and a solid–liquid connector at the interface.
 - **Graph view switch** — `Auto zoom` rescales the along-bar chart as `f_s` changes; `Fixed scale` locks the axes so only the data moves.
@@ -58,22 +58,25 @@ Limiting behaviour built into the models:
 
 ## Temperature and the liquidus
 
-The temperature slider uses the dilute linear liquidus from the notes:
+The temperature slider does two things: it moves the equilibrium tie-line and it rescales the rate parameters, so the concentration curves respond to temperature.
+
+The tie-line comes from quadratic fits to the Al–Cu liquidus and solidus through `(0, 660.3)`, `(4.8, 648)`, `(33, 548)` and `(0, 660.3)`, `(0.8304, 648)`, `(5.65, 548)`:
 
 ```
-T_L = T_m − m C_L
+C_L(T), C_S(T) from the fits
+k(T) = C_S(T) / C_L(T)
 ```
 
-The slope is anchored at `(0, 660.3)` and `(4.8, 648)`, giving `m = 2.5625 °C per wt.% Cu`. Inverting the relation fixes the equilibrium tie-line at the selected temperature:
+At `648 °C` this gives `C_L = 4.80 wt.%`, `C_S = 0.830 wt.%`, and `k = 0.173`. The diffusion coefficients follow Arrhenius scaling anchored at the same temperature:
 
 ```
-C_L,eq(T) = (T_m − T)/m
-C_S,eq(T) = k C_L,eq(T)
+D_S(T) = 4.8×10⁻¹⁵ · exp[−(130 kJ/mol)/R_g · (1/T − 1/648 °C)]
+D_L(T) = 2.4×10⁻⁹  · exp[−(30 kJ/mol)/R_g  · (1/T − 1/648 °C)]
 ```
 
-At `648 °C` this gives `C_L,eq = 4.80 wt.%` and `C_S,eq = 0.830 wt.%` with `k = 0.173`. The dashed tie-line references and the readout move as `T` changes.
+The **Derive k, D_s and D_L from T** checkbox is on by default. Editing `k`, dragging its slider, or animating it switches to manual mode, where `k`, `D_S`, and `D_L` are independent inputs; re-checking the box re-anchors all three to the current temperature. In whole-degree steps over 548–700 °C, `k(T)` changes only from about `0.1712` to `0.1735`, so the equilibrium and Scheil *normalized* curves move very little with temperature — the visible temperature effect is mainly through `D_S(T)` and `D_L(T)` in Clyne–Kurz and the limited-diffusion model.
 
-Following the notes, `k`, `D_L`, and `m` are constants. The app does **not** derive a temperature-dependent partition coefficient or temperature-dependent diffusivities, and it does not rescale `D_S`. The `k` and `C_0` sliders use a logarithmic 0.01–100 scale so the default values sit in a usable part of the track; each remains independently editable in its number box. The linear liquidus is a local dilute-alloy approximation, not a full Al–Cu phase diagram.
+For comparison, the notes' dilute liquidus `T_L = T_m − m C_L` with `m = 2.5625 °C per wt.% Cu` remains the cleaner local approximation for the tie-line itself. The quadratic fits and activation energies are standard Al–Cu approximations, not derivations from the notes, and the fits are extrapolated across the slider range.
 
 ## Reference alloy and defaults
 
@@ -81,8 +84,8 @@ Following the notes, `k`, `D_L`, and `m` are constants. The app does **not** der
 |---|---|
 | Alloy | Al–4.8 wt.% Cu |
 | Nominal composition `C_0` | 4.8 wt.% Cu |
-| Partition coefficient `k` | 0.173 (constant) |
-| Liquidus slope `m` | 2.5625 °C per wt.% Cu |
+| Partition coefficient `k` | 0.173 at 648 °C (derived from `T` by default) |
+| Liquidus / solidus fits | quadratic, anchored at `(0, 660.3)`, `(4.8, 648)`, `(548 °C)` points |
 | Liquid diffusivity `D_L` | 2.4×10⁻⁹ m²/s |
 | Solid diffusivity `D_S` | 4.8×10⁻¹⁵ m²/s |
 | Liquidus / solidus | 648 °C / 548 °C |
@@ -106,9 +109,9 @@ Following the notes, `k`, `D_L`, and `m` are constants. The app does **not** der
 ## Limitations and caveats
 
 - It is a **teaching model**, not a quantitative prediction tool for a real casting.
-- `k` is treated as constant and the liquidus is a linear dilute-alloy approximation; the terminal eutectic is not modelled.
+- The temperature coupling uses empirical quadratic phase-diagram fits and Arrhenius diffusion; the notes themselves assume constant `k` and `D`. The terminal eutectic is not modelled.
 - The Clyne–Kurz model does not resolve a spatial solid profile; it gives an average solid composition plus the interface value.
-- The linear liquidus `T_L = T_m − m C_L` is extrapolated across the 548–700 °C slider range for display; use it near the alloy composition.
+- The phase-diagram fits are extrapolated across the 548–700 °C slider range for display; use them near the Al–Cu composition, and treat `k(T)` as nearly constant there.
 - The limited-liquid-diffusion case assumes a planar interface; in reality constitutional supercooling can make it cellular or dendritic.
 - Singularities at `f_s = 1` are capped/flagged rather than treated as physical.
 - For real-alloy work you would need a measured or thermodynamic partition coefficient, the actual cooling history, and a defensible microstructural length scale.
